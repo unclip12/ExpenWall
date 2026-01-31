@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { ReceiptData } from "../types";
+import { ReceiptData, StatementData } from "../types";
 
 const processReceiptImage = async (base64Image: string, mimeType: string, apiKey: string): Promise<ReceiptData> => {
   try {
@@ -69,11 +69,9 @@ const processReceiptImage = async (base64Image: string, mimeType: string, apiKey
 
     if (response.text) {
       try {
-        // Clean up potential markdown formatting before parsing
         const cleanText = response.text.replace(/```json|```/g, '').trim();
         const data = JSON.parse(cleanText) as ReceiptData;
         
-        // Post-processing defaults
         if (!data.merchant || data.merchant.trim() === '') {
           data.merchant = "Unknown Merchant";
         }
@@ -84,35 +82,94 @@ const processReceiptImage = async (base64Image: string, mimeType: string, apiKey
         throw new Error("Failed to parse the receipt data. The AI response was not valid JSON.");
       }
     } else {
-      throw new Error("No text response from Gemini. The image might be unclear or blocked by safety settings.");
+      throw new Error("No text response from Gemini.");
     }
 
   } catch (error: any) {
-    console.error("Error processing receipt with Gemini:", error);
-    
-    // Try to parse Google API JSON error message if it's stringified
-    let errorMessage = error.message || "Unknown error occurred";
-    
-    // Check if the error message is a raw JSON string
-    if (typeof errorMessage === 'string' && (errorMessage.startsWith('{') || errorMessage.startsWith('['))) {
-      try {
-        const parsed = JSON.parse(errorMessage);
-        if (parsed.error && parsed.error.message) {
-          errorMessage = parsed.error.message;
-        }
-      } catch (e) {
-        // failed to parse, keep original
-      }
-    }
-
-    if (errorMessage.includes("API key not valid") || errorMessage.includes("API_KEY_INVALID")) {
-      throw new Error("The API Key provided is invalid. Please check your settings.");
-    }
-
-    throw new Error(errorMessage);
+    handleGeminiError(error);
+    throw error;
   }
 };
 
+const analyzeBankStatement = async (base64Image: string, mimeType: string, apiKey: string): Promise<StatementData> => {
+    try {
+        if (!apiKey) throw new Error("API Key is missing.");
+
+        const ai = new GoogleGenAI({ apiKey });
+        const currentYear = new Date().getFullYear();
+
+        const response = await ai.models.generateContent({
+            model: 'gemini-3-flash-preview',
+            contents: {
+                parts: [
+                    { inlineData: { mimeType, data: base64Image } },
+                    {
+                        text: `Extract all transactions from this bank statement or transaction history list.
+                        
+                        CRITICAL CLEANUP RULES:
+                        1. **Merchant Name**: Remove technical clutter.
+                           - 'UPI/12345/Swiggy/...' -> 'Swiggy'
+                           - 'POS/TERMINAL 1/STARBUCKS' -> 'Starbucks'
+                           - 'AMZN Pay India Pvt' -> 'Amazon Pay'
+                           - Remove dates or ref numbers from the name.
+                           - Keep the name simple and readable.
+                        
+                        2. **Transaction Type**:
+                           - Look for 'Cr', 'Credit', '+' or columns indicating Deposit/Income. Mark as 'income'.
+                           - Look for 'Dr', 'Debit', '-' or columns indicating Withdrawal/Spend. Mark as 'expense'.
+                        
+                        3. **Category**: Auto-categorize based on the merchant name (e.g., Swiggy -> Food, Uber -> Transport).
+                        
+                        4. **Date**: Format YYYY-MM-DD. If year is missing in row, use ${currentYear}.`
+                    }
+                ]
+            },
+            config: {
+                systemInstruction: "You are a specialized financial data extractor. You clean up messy bank transaction strings into human-readable merchant names. You accurately distinguish between Income (Credits) and Expenses (Debits).",
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: Type.OBJECT,
+                    properties: {
+                        transactions: {
+                            type: Type.ARRAY,
+                            items: {
+                                type: Type.OBJECT,
+                                properties: {
+                                    merchant: { type: Type.STRING },
+                                    date: { type: Type.STRING },
+                                    amount: { type: Type.NUMBER },
+                                    type: { type: Type.STRING, enum: ['expense', 'income'] },
+                                    category: { type: Type.STRING }
+                                },
+                                required: ["merchant", "amount", "type"]
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        if (response.text) {
+             const cleanText = response.text.replace(/```json|```/g, '').trim();
+             return JSON.parse(cleanText) as StatementData;
+        }
+        throw new Error("No data returned.");
+
+    } catch (error) {
+        handleGeminiError(error);
+        throw error;
+    }
+}
+
+const handleGeminiError = (error: any) => {
+    console.error("Gemini Error:", error);
+    let errorMessage = error.message || "Unknown error";
+    if (errorMessage.includes("API key not valid") || errorMessage.includes("API_KEY_INVALID")) {
+      throw new Error("The API Key provided is invalid. Please check your settings.");
+    }
+}
+
 export const geminiService = {
-  processReceiptImage
+  processReceiptImage,
+  analyzeBankStatement
 };

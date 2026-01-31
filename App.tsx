@@ -8,6 +8,7 @@ import { TransactionForm } from './components/TransactionForm';
 import { BuyingListView } from './components/BuyingListView';
 import { LoginView } from './components/LoginView';
 import { SettingsView } from './components/SettingsView';
+import { AnalyzerView } from './components/AnalyzerView';
 import { NAV_ITEMS } from './constants';
 import { Transaction, BuyingItem } from './types';
 import { subscribeToTransactions, addTransactionToDb, getUserProfile, subscribeToBuyingList } from './services/firestoreService';
@@ -120,6 +121,21 @@ const App: React.FC = () => {
     }
   };
 
+  const handleBulkAddTransactions = async (newTxs: Omit<Transaction, 'id'>[]) => {
+      if(!user) return;
+      setIsSaving(true);
+      try {
+          // Add them sequentially to ensure order or just parallel
+          await Promise.all(newTxs.map(tx => addTransactionToDb(tx, user.uid)));
+          setActiveTab('dashboard');
+      } catch (error) {
+          console.error("Bulk save error", error);
+          alert("Some transactions failed to save.");
+      } finally {
+          setIsSaving(false);
+      }
+  }
+
   const handleLogout = () => {
     if (auth) auth.signOut();
   };
@@ -162,11 +178,22 @@ const App: React.FC = () => {
       );
     }
 
+    if (isSaving) {
+        return (
+             <div className="flex flex-col items-center justify-center h-full">
+                 <Loader2 className="w-10 h-10 text-indigo-600 animate-spin mb-4" />
+                 <p className="text-slate-600 font-medium">Processing...</p>
+             </div>
+        )
+    }
+
     switch (activeTab) {
       case 'dashboard':
         return <Dashboard transactions={transactions} />;
       case 'transactions':
         return <TransactionList transactions={transactions} />;
+      case 'analyzer':
+        return <AnalyzerView apiKey={userApiKey} onSaveTransactions={handleBulkAddTransactions} />;
       case 'buying-list':
         return <BuyingListView items={buyingItems} userId={user.uid} />;
       case 'settings':
@@ -186,6 +213,7 @@ const App: React.FC = () => {
     if (showAddModal) return 'New Transaction';
     if (activeTab === 'buying-list') return 'Buying List';
     if (activeTab === 'dashboard') return 'Overview';
+    if (activeTab === 'analyzer') return 'Statement Analyzer';
     if (activeTab === 'settings') return 'Settings';
     return 'Transactions';
   }
@@ -194,6 +222,7 @@ const App: React.FC = () => {
     if (showAddModal) return 'Enter details manually or scan a receipt.';
     if (activeTab === 'buying-list') return 'Track items you plan to purchase.';
     if (activeTab === 'settings') return 'Configure your preferences.';
+    if (activeTab === 'analyzer') return 'Scan bank statements or paste data.';
     return 'Welcome back! Here is your financial summary.';
   }
 

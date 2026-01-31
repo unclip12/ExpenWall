@@ -1,5 +1,5 @@
 import React, { useState, useRef, ChangeEvent } from 'react';
-import { Camera, Upload, Check, Loader2, X, Plus, AlertCircle, Settings } from 'lucide-react';
+import { Camera, Upload, Check, Loader2, X, AlertCircle, Settings, ArrowDownCircle, ArrowUpCircle } from 'lucide-react';
 import { Category, Transaction, ReceiptData } from '../types';
 import { CATEGORIES, CURRENCIES, DEFAULT_CURRENCY } from '../constants';
 import { geminiService } from '../services/geminiService';
@@ -19,6 +19,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit, onCa
     amount: 0,
     currency: localStorage.getItem('expenwall_currency') || DEFAULT_CURRENCY,
     category: Category.OTHER,
+    type: 'expense', // Default to expense
     notes: '',
     items: [],
     receiptUrl: ''
@@ -70,7 +71,6 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit, onCa
           // Only override default currency if the receipt explicitly looks like another supported currency
           if (receiptData.currency) {
              const cleanCurrency = receiptData.currency.toUpperCase();
-             // Simple heuristic match against our constant list
              const match = CURRENCIES.find(c => cleanCurrency.includes(c.code) || cleanCurrency.includes(c.symbol));
              if (match) {
                 detectedCurrency = match.code;
@@ -87,6 +87,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit, onCa
               ? receiptData.category as Category 
               : Category.OTHER),
             items: receiptData.items || [],
+            type: 'expense', // Receipts are usually expenses
             receiptUrl: base64String // Kept in state for preview, but removed on submit
           }));
         } catch (err: any) {
@@ -108,13 +109,8 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit, onCa
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Create a copy of the data
     const submissionData = { ...formData };
-    
-    // Remove the receiptUrl (image data) before sending to database to save storage costs
     delete submissionData.receiptUrl;
-    
     onSubmit(submissionData);
   };
 
@@ -133,7 +129,31 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit, onCa
       </div>
 
       <div className="p-6 space-y-6">
-        {/* File Upload Section */}
+        {/* Type Toggle */}
+        <div className="flex p-1 bg-slate-100 rounded-xl">
+           <button
+             type="button"
+             onClick={() => setFormData(prev => ({ ...prev, type: 'expense' }))}
+             className={`flex-1 flex items-center justify-center space-x-2 py-2 rounded-lg text-sm font-semibold transition-all ${
+               formData.type === 'expense' ? 'bg-white text-red-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+             }`}
+           >
+             <ArrowUpCircle className="w-4 h-4" />
+             <span>Expense</span>
+           </button>
+           <button
+             type="button"
+             onClick={() => setFormData(prev => ({ ...prev, type: 'income', category: Category.INCOME }))}
+             className={`flex-1 flex items-center justify-center space-x-2 py-2 rounded-lg text-sm font-semibold transition-all ${
+               formData.type === 'income' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+             }`}
+           >
+             <ArrowDownCircle className="w-4 h-4" />
+             <span>Income</span>
+           </button>
+        </div>
+
+        {/* File Upload Section (Only show for expenses typically, but allow for both) */}
         <div className="bg-indigo-50 border-2 border-dashed border-indigo-200 rounded-xl p-6 text-center transition-all hover:bg-indigo-100/50">
           
           {!apiKey ? (
@@ -141,10 +161,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit, onCa
                <div className="p-3 bg-orange-100 text-orange-600 rounded-full">
                  <AlertCircle className="w-6 h-6" />
                </div>
-               <p className="text-slate-700 font-medium">AI Receipt Scanning is not configured</p>
-               <p className="text-xs text-slate-500 max-w-xs mx-auto">
-                 To automatically scan receipts, please add your free Gemini API Key in Settings.
-               </p>
+               <p className="text-slate-700 font-medium">AI Scanning is not configured</p>
                <button 
                  onClick={onOpenSettings}
                  className="mt-2 flex items-center space-x-2 px-4 py-2 bg-white text-indigo-700 border border-indigo-200 rounded-lg hover:bg-indigo-50 transition-colors shadow-sm text-sm font-medium"
@@ -155,23 +172,8 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit, onCa
              </div>
           ) : (
             <>
-              {/* Standard File Upload Input */}
-              <input 
-                type="file" 
-                ref={fileInputRef}
-                accept="image/*"
-                className="hidden" 
-                onChange={handleFileChange}
-              />
-              {/* Camera Capture Input */}
-              <input 
-                type="file" 
-                ref={cameraInputRef}
-                accept="image/*"
-                capture="environment" 
-                className="hidden" 
-                onChange={handleFileChange}
-              />
+              <input type="file" ref={fileInputRef} accept="image/*" className="hidden" onChange={handleFileChange} />
+              <input type="file" ref={cameraInputRef} accept="image/*" capture="environment" className="hidden" onChange={handleFileChange} />
               
               {isScanning ? (
                 <div className="flex flex-col items-center justify-center space-y-3">
@@ -187,7 +189,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit, onCa
                       className="flex items-center space-x-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
                     >
                       <Upload className="w-4 h-4" />
-                      <span>Upload Receipt</span>
+                      <span>Upload Image</span>
                     </button>
                     <button 
                       type="button"
@@ -195,7 +197,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit, onCa
                       className="flex items-center space-x-2 px-4 py-2 bg-white text-indigo-700 border border-indigo-200 rounded-lg hover:bg-indigo-50 transition-colors shadow-sm"
                     >
                       <Camera className="w-4 h-4" />
-                      <span>Scan with Camera</span>
+                      <span>Camera</span>
                     </button>
                   </div>
                   <p className="text-xs text-indigo-400">Supports JPG, PNG, WEBP. AI will auto-fill the form.</p>
@@ -218,7 +220,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit, onCa
         <form onSubmit={handleSubmit} className="space-y-5">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div className="space-y-2">
-              <label className="text-sm font-semibold text-slate-700">Merchant</label>
+              <label className="text-sm font-semibold text-slate-700">Merchant / Source</label>
               <input
                 type="text"
                 name="merchant"
@@ -226,12 +228,12 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit, onCa
                 value={formData.merchant}
                 onChange={handleInputChange}
                 className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
-                placeholder="e.g. Starbucks"
+                placeholder="e.g. Starbucks or Salary"
               />
             </div>
             
             <div className="space-y-2">
-              <label className="text-sm font-semibold text-slate-700">Total Amount</label>
+              <label className="text-sm font-semibold text-slate-700">Amount</label>
               <div className="flex space-x-2">
                 <div className="relative w-28 flex-shrink-0">
                   <select
@@ -254,7 +256,9 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit, onCa
                     required
                     value={formData.amount}
                     onChange={handleInputChange}
-                    className="w-full pl-8 pr-4 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
+                    className={`w-full pl-8 pr-4 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:border-transparent outline-none transition-all ${
+                        formData.type === 'income' ? 'text-emerald-600 font-semibold' : 'text-slate-800'
+                    }`}
                     placeholder="0.00"
                   />
                 </div>
@@ -300,8 +304,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit, onCa
             />
           </div>
 
-          {/* Extracted Items Preview */}
-          {formData.items && formData.items.length > 0 && (
+          {formData.items && formData.items.length > 0 && formData.type === 'expense' && (
             <div className="bg-slate-50 rounded-lg p-4 border border-slate-100">
               <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Extracted Items</h4>
               <div className="space-y-2">
@@ -325,10 +328,14 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit, onCa
             </button>
             <button
               type="submit"
-              className="px-6 py-2.5 rounded-lg bg-indigo-600 text-white font-medium hover:bg-indigo-700 shadow-md shadow-indigo-200 transition-all flex items-center"
+              className={`px-6 py-2.5 rounded-lg text-white font-medium shadow-md transition-all flex items-center ${
+                  formData.type === 'income' 
+                  ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200' 
+                  : 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-200'
+              }`}
             >
               <Check className="w-4 h-4 mr-2" />
-              Save Transaction
+              Save {formData.type === 'income' ? 'Income' : 'Expense'}
             </button>
           </div>
         </form>

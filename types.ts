@@ -6,8 +6,11 @@ export enum Category {
   SHOPPING = 'Shopping',
   HEALTH = 'Health & Fitness',
   GROCERIES = 'Groceries',
+  INCOME = 'Income',
   OTHER = 'Other'
 }
+
+export type TransactionType = 'expense' | 'income';
 
 export interface TransactionItem {
   name: string;
@@ -22,6 +25,7 @@ export interface Transaction {
   amount: number;
   currency: string; // 'USD' | 'INR'
   category: Category;
+  type: TransactionType;
   items?: TransactionItem[];
   notes?: string;
   receiptUrl?: string; // Base64 of receipt if uploaded
@@ -44,6 +48,16 @@ export interface ReceiptData {
   currency?: string;
   category: string;
   items: TransactionItem[];
+}
+
+export interface StatementData {
+  transactions: {
+    merchant: string;
+    date: string;
+    amount: number;
+    type: TransactionType;
+    category: string;
+  }[];
 }
 
 export interface UserProfile {
