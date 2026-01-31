@@ -1,5 +1,5 @@
 {
-  "name": "Expenwall N",
+  "name": "Expenwall",
   "description": "A modern wallet manager that uses Gemini AI to scan receipts and automatically log transactions.",
   "requestFramePermissions": [
     "camera"
