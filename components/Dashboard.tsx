@@ -47,7 +47,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions }) => {
               +2.5%
             </span>
           </div>
-          <p className="text-slate-500 text-sm font-medium">Total Spent ({currency})</p>
+          <p className="text-slate-500 text-sm font-medium">Total Spent</p>
           <h3 className="text-3xl font-bold text-slate-800">{currentSymbol}{totalSpent.toFixed(2)}</h3>
         </div>
 
@@ -81,7 +81,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions }) => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Charts */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-          <h3 className="text-lg font-bold text-slate-800 mb-6">Spending by Category ({currency})</h3>
+          <h3 className="text-lg font-bold text-slate-800 mb-6">Spending by Category</h3>
           
           {categoryData.length > 0 ? (
             <div className="h-64 w-full">
@@ -124,7 +124,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions }) => {
 
         {/* Recent Transactions List (Mini) */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-          <h3 className="text-lg font-bold text-slate-800 mb-4">Recent {currency} Transactions</h3>
+          <h3 className="text-lg font-bold text-slate-800 mb-4">Recent Transactions</h3>
           <div className="space-y-4">
             {recentTransactions.length > 0 ? recentTransactions.map((t) => (
               <div key={t.id} className="flex items-center justify-between p-3 hover:bg-slate-50 rounded-xl transition-colors">

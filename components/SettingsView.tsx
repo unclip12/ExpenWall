@@ -29,11 +29,6 @@ export const SettingsView: React.FC = () => {
 
   }, []);
 
-  const handleSavePreferences = () => {
-    localStorage.setItem('expenwall_currency', currencyCode);
-    showMessage('success', 'Preferences saved successfully!');
-  };
-
   const showMessage = (type: 'success' | 'error', text: string) => {
     setMessage({ type, text });
     setTimeout(() => setMessage(null), 3000);
@@ -120,9 +115,12 @@ export const SettingsView: React.FC = () => {
                          <button
                            key={c.code}
                            onClick={() => {
-                             setCurrencyCode(c.code);
+                             const newCode = c.code;
+                             setCurrencyCode(newCode);
+                             localStorage.setItem('expenwall_currency', newCode);
                              setIsCurrencyListOpen(false);
                              setCurrencySearch('');
+                             showMessage('success', `Currency updated to ${newCode}`);
                            }}
                            className={`w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50 transition-colors ${
                              currencyCode === c.code ? 'bg-indigo-50/50' : ''
@@ -149,16 +147,6 @@ export const SettingsView: React.FC = () => {
              </div>
 
              <p className="text-xs text-slate-500">This currency will be selected by default when adding transactions or viewing the dashboard.</p>
-          </div>
-
-          <div className="pt-2">
-            <button
-              onClick={handleSavePreferences}
-              className="flex items-center px-6 py-2.5 bg-slate-800 text-white rounded-lg font-medium hover:bg-slate-900 transition-colors shadow-sm"
-            >
-              <Save className="w-4 h-4 mr-2" />
-              Save Preferences
-            </button>
           </div>
         </div>
       </div>
