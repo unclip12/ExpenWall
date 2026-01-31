@@ -17,7 +17,7 @@ jobs:
       - name: Install Dependencies
         run: npm install
         
-      - name: Build and Deploy
+      - - name: Build and Deploy
         run: npm ci && npm run build
         env:
           VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
