@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Menu, X, PlusCircle, Wallet, Loader2, LogOut } from 'lucide-react';
-import { onAuthStateChanged, User, signOut } from "firebase/auth";
+import { Menu, X, PlusCircle, Wallet, Loader2, LogOut, AlertTriangle } from 'lucide-react';
+import firebase from 'firebase/app';
 import { auth } from './firebase';
 import { Dashboard } from './components/Dashboard';
 import { TransactionList } from './components/TransactionList';
@@ -18,11 +18,35 @@ const App: React.FC = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<firebase.User | null>(null);
+
+  // 0. Configuration Check
+  // If firebase.ts failed to export 'auth', it means keys are missing or invalid.
+  if (!auth) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 p-6 text-center">
+        <div className="bg-red-100 p-4 rounded-full mb-4">
+          <AlertTriangle className="w-10 h-10 text-red-600" />
+        </div>
+        <h1 className="text-2xl font-bold text-slate-800 mb-2">Configuration Missing</h1>
+        <p className="text-slate-600 max-w-md mb-6">
+          The app could not connect to Firebase. This usually means the <code>VITE_FIREBASE_API_KEY</code> and associated variables are not set in your environment.
+        </p>
+        <div className="bg-white p-4 rounded-lg shadow-sm border border-slate-200 text-left w-full max-w-lg">
+          <p className="text-xs font-mono text-slate-500 mb-2">Check your .env or Deployment Settings:</p>
+          <code className="text-xs text-indigo-600 block bg-slate-50 p-2 rounded">
+            VITE_FIREBASE_API_KEY=...<br/>
+            VITE_FIREBASE_AUTH_DOMAIN=...<br/>
+            VITE_FIREBASE_PROJECT_ID=...
+          </code>
+        </div>
+      </div>
+    );
+  }
 
   // Handle Authentication
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribe = auth.onAuthStateChanged((currentUser) => {
       setUser(currentUser);
       setLoading(false);
     });
@@ -63,7 +87,7 @@ const App: React.FC = () => {
   };
 
   const handleLogout = () => {
-    signOut(auth);
+    auth.signOut();
   };
 
   // 1. Loading State

@@ -1,6 +1,6 @@
-import { initializeApp } from "firebase/app";
-import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import firebase from "firebase/app";
+import "firebase/auth";
+import "firebase/firestore";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -18,19 +18,19 @@ if (!firebaseConfig.apiKey) {
 }
 
 // Initialize Firebase
-// We use a try-catch block or conditional initialization to prevent the entire app from crashing (White Screen of Death)
-// if the config is invalid, although Firebase SDK usually requires valid config to do anything useful.
-let app;
-let auth: any;
-let db: any;
-
-try {
-  app = initializeApp(firebaseConfig);
-  auth = getAuth(app);
-  db = getFirestore(app);
-} catch (error) {
-  console.error("Firebase Initialization Error:", error);
+// Using v8 check to avoid double initialization
+if (!firebase.apps.length) {
+  try {
+    firebase.initializeApp(firebaseConfig);
+  } catch (error) {
+    console.error("Firebase Initialization Error:", error);
+  }
+} else {
+  firebase.app(); // if already initialized, use that one
 }
+
+const auth = firebase.auth();
+const db = firebase.firestore();
 
 /**
  * Attempts to log in using a "Secret ID".
@@ -38,8 +38,6 @@ try {
  * If the user doesn't exist, it automatically registers them.
  */
 export const loginWithSecretId = async (secretId: string) => {
-  if (!auth) throw new Error("Firebase auth is not initialized. Check your API keys.");
-
   // sanitize the ID to ensure valid email format
   const sanitizedId = secretId.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
   
@@ -51,7 +49,7 @@ export const loginWithSecretId = async (secretId: string) => {
   const password = `pass_${sanitizedId}`;
 
   try {
-    return await signInWithEmailAndPassword(auth, email, password);
+    return await auth.signInWithEmailAndPassword(email, password);
   } catch (error: any) {
     // If user not found or invalid credential (which might mean user not found in newer API), try to register
     if (
@@ -60,7 +58,7 @@ export const loginWithSecretId = async (secretId: string) => {
       error.code === 'auth/wrong-password'
     ) {
       try {
-        return await createUserWithEmailAndPassword(auth, email, password);
+        return await auth.createUserWithEmailAndPassword(email, password);
       } catch (createError: any) {
         if (createError.code === 'auth/email-already-in-use') {
              // This happens if the password didn't match the deterministic password
@@ -73,4 +71,4 @@ export const loginWithSecretId = async (secretId: string) => {
   }
 };
 
-export { app, auth, db };
+export { firebase, auth, db };

@@ -1,5 +1,4 @@
 import { db } from "../firebase";
-import { collection, addDoc, onSnapshot, query, where } from "firebase/firestore";
 import { Transaction } from "../types";
 
 const COLLECTION_NAME = "transactions";
@@ -10,9 +9,8 @@ const COLLECTION_NAME = "transactions";
  */
 export const subscribeToTransactions = (userId: string, onUpdate: (data: Transaction[]) => void) => {
   // Query only the current user's transactions
-  const q = query(collection(db, COLLECTION_NAME), where("userId", "==", userId));
-  
-  return onSnapshot(q, (snapshot) => {
+  // Using v8 chained syntax
+  return db.collection(COLLECTION_NAME).where("userId", "==", userId).onSnapshot((snapshot) => {
     const transactions = snapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data()
@@ -35,7 +33,7 @@ export const subscribeToTransactions = (userId: string, onUpdate: (data: Transac
  */
 export const addTransactionToDb = async (transaction: Omit<Transaction, "id">, userId: string) => {
   try {
-    await addDoc(collection(db, COLLECTION_NAME), {
+    await db.collection(COLLECTION_NAME).add({
       ...transaction,
       userId,
       createdAt: new Date() // Useful for debugging or sorting by insertion time later
