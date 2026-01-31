@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { CheckCircle, AlertCircle, Globe, ChevronDown, Check, Search, Key, ExternalLink, Loader2, Wallet, Plus, Trash2, CreditCard, Banknote, Smartphone } from 'lucide-react';
+import { CheckCircle, AlertCircle, Globe, ChevronDown, Check, Search, Key, ExternalLink, Loader2, Wallet, Plus, Trash2, CreditCard, Banknote, Smartphone, Cpu } from 'lucide-react';
 import { CURRENCIES, DEFAULT_CURRENCY } from '../constants';
 import { saveUserApiKey, addWalletToDb, deleteWalletFromDb, subscribeToWallets } from '../services/firestoreService';
 import { Wallet as WalletType } from '../types';
+import { GEMINI_MODEL } from '../services/geminiService';
 
 interface SettingsViewProps {
   currentApiKey?: string;
@@ -306,6 +307,17 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ currentApiKey = '', 
         </div>
 
         <div className="max-w-2xl space-y-4">
+          <div className="bg-indigo-50/50 border border-indigo-100 p-4 rounded-xl flex items-start gap-3">
+             <Cpu className="w-5 h-5 text-indigo-600 mt-0.5 flex-shrink-0" />
+             <div>
+                <p className="text-sm font-bold text-indigo-900">Current Model: {GEMINI_MODEL}</p>
+                <p className="text-xs text-indigo-700 mt-1">
+                  The API Key you paste below is used directly to authenticate with Google Gemini for scanning receipts and analyzing transactions. 
+                  It is not used for Firebase or any other service.
+                </p>
+             </div>
+          </div>
+
           <div className="bg-blue-50/50 border border-blue-100 p-4 rounded-xl">
             <a
               href="https://aistudio.google.com/app/apikey"

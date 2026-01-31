@@ -1,12 +1,12 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { ReceiptData, StatementData, DraftTransaction } from "../types";
 
-// Using the experimental model as it typically has better availability/quotas in preview
-const GEMINI_MODEL = 'gemini-2.0-flash-exp';
+// We export this so the UI can display exactly which model is being used.
+export const GEMINI_MODEL = 'gemini-2.0-flash';
 
 /**
- * Creates a new GoogleGenAI instance. Centralised so the model name
- * is easy to change in one place.
+ * Creates a new GoogleGenAI instance.
+ * This explicitly uses the user-provided apiKey, ensuring privacy and separate billing/quotas.
  */
 const createAI = (apiKey: string) => new GoogleGenAI({ apiKey });
 

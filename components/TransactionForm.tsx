@@ -1,8 +1,8 @@
 import React, { useState, useRef, ChangeEvent } from 'react';
-import { Camera, Upload, Check, Loader2, X, AlertCircle, Settings, ArrowDownCircle, ArrowUpCircle, Wallet as WalletIcon } from 'lucide-react';
+import { Camera, Upload, Check, Loader2, X, AlertCircle, Settings, ArrowDownCircle, ArrowUpCircle, Wallet as WalletIcon, Sparkles } from 'lucide-react';
 import { Category, Transaction, ReceiptData, Wallet } from '../types';
 import { CATEGORIES, CURRENCIES, DEFAULT_CURRENCY } from '../constants';
-import { geminiService } from '../services/geminiService';
+import { geminiService, GEMINI_MODEL } from '../services/geminiService';
 
 interface TransactionFormProps {
   onSubmit: (transaction: Omit<Transaction, 'id'>) => void;
@@ -172,10 +172,15 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit, onCa
         </div>
 
         {/* File Upload */}
-        <div className="bg-indigo-50/50 border-2 border-dashed border-indigo-200/60 rounded-2xl p-6 text-center transition-all hover:bg-indigo-50 hover:border-indigo-300">
+        <div className="bg-indigo-50/50 border-2 border-dashed border-indigo-200/60 rounded-2xl p-6 text-center transition-all hover:bg-indigo-50 hover:border-indigo-300 relative">
           
+          <div className="absolute top-2 right-2 flex items-center space-x-1 bg-white/80 backdrop-blur px-2 py-1 rounded text-[10px] text-indigo-500 font-medium border border-indigo-100">
+             <Sparkles className="w-3 h-3" />
+             <span>{GEMINI_MODEL}</span>
+          </div>
+
           {!apiKey ? (
-             <div className="flex flex-col items-center justify-center space-y-3">
+             <div className="flex flex-col items-center justify-center space-y-3 pt-4">
                <div className="p-3 bg-orange-100 text-orange-600 rounded-full">
                  <AlertCircle className="w-6 h-6" />
                </div>
@@ -194,12 +199,12 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit, onCa
               <input type="file" ref={cameraInputRef} accept="image/*" capture="environment" className="hidden" onChange={handleFileChange} />
               
               {isScanning ? (
-                <div className="flex flex-col items-center justify-center space-y-3">
+                <div className="flex flex-col items-center justify-center space-y-3 pt-4">
                   <Loader2 className="w-8 h-8 text-indigo-600 animate-spin" />
                   <p className="text-sm font-medium text-indigo-700">Analyzing Receipt with Gemini AI...</p>
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-3 pt-2">
                   <div className="flex justify-center space-x-4">
                     <button 
                       type="button"

@@ -2,6 +2,7 @@ import React, { useRef } from 'react';
 import { Bot, Send, Image as ImageIcon, Loader2, Check, X, Edit2, RotateCcw } from 'lucide-react';
 import { CATEGORIES, DEFAULT_CURRENCY } from '../constants';
 import { Category, Transaction, DraftTransaction, AnalyzerState } from '../types';
+import { GEMINI_MODEL } from '../services/geminiService';
 
 interface AnalyzerViewProps {
   apiKey?: string;
@@ -85,7 +86,10 @@ export const AnalyzerView: React.FC<AnalyzerViewProps> = ({
     <div className="flex flex-col h-[calc(100vh-140px)] max-h-[800px] bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden relative">
       
       {/* Header Actions */}
-      <div className="absolute top-4 right-4 z-10">
+      <div className="absolute top-4 right-4 z-10 flex gap-2">
+        <div className="hidden md:flex items-center px-2 py-1 bg-slate-100 rounded-lg text-[10px] text-slate-500 font-mono border border-slate-200">
+           {GEMINI_MODEL}
+        </div>
         <button onClick={handleClear} className="p-2 bg-slate-100 hover:bg-slate-200 rounded-full text-slate-500 transition-colors" title="Reset">
             <RotateCcw className="w-4 h-4" />
         </button>
