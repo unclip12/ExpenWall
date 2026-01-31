@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Menu, X, PlusCircle, Wallet, Loader2, LogOut, AlertTriangle } from 'lucide-react';
-import firebase from "firebase/app";
+import firebase from "firebase/compat/app";
 import { auth } from './firebase';
 import { Dashboard } from './components/Dashboard';
 import { TransactionList } from './components/TransactionList';

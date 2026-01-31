@@ -1,6 +1,6 @@
 import { db } from "../firebase";
 import { Transaction } from "../types";
-import firebase from "firebase/app";
+import firebase from "firebase/compat/app";
 
 const COLLECTION_NAME = "transactions";
 
