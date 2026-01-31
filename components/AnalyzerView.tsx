@@ -1,193 +1,137 @@
-import React, { useState, useRef } from 'react';
-import { Bot, Send, Image as ImageIcon, Loader2, Check, X, Edit2, Copy, AlertCircle } from 'lucide-react';
-import { geminiService } from '../services/geminiService';
+import React, { useRef } from 'react';
+import { Bot, Send, Image as ImageIcon, Loader2, Check, X, Edit2, RotateCcw } from 'lucide-react';
 import { CATEGORIES, DEFAULT_CURRENCY } from '../constants';
-import { Category, Transaction } from '../types';
+import { Category, Transaction, DraftTransaction, AnalyzerState } from '../types';
 
 interface AnalyzerViewProps {
   apiKey?: string;
+  state: AnalyzerState;
+  onStateChange: (newState: Partial<AnalyzerState>) => void;
   onSaveTransactions: (transactions: Omit<Transaction, 'id'>[]) => Promise<void>;
+  onAnalyzeImage: (file: File) => Promise<void>;
+  onSendMessage: (text: string) => Promise<void>;
 }
 
-interface DraftTransaction {
-  id: string; // Temp ID
-  merchant: string;
-  date: string;
-  amount: number;
-  type: 'expense' | 'income';
-  category: string;
-}
-
-export const AnalyzerView: React.FC<AnalyzerViewProps> = ({ apiKey, onSaveTransactions }) => {
-  const [messages, setMessages] = useState<{role: 'user'|'bot', text: string}[]>([
-    { role: 'bot', text: 'Hello! I can analyze your bank statements. Upload an image, or paste the JSON result from an external AI if you want to save API costs.' }
-  ]);
-  const [inputValue, setInputValue] = useState('');
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [drafts, setDrafts] = useState<DraftTransaction[]>([]);
+export const AnalyzerView: React.FC<AnalyzerViewProps> = ({ 
+  apiKey, 
+  state, 
+  onStateChange,
+  onSaveTransactions, 
+  onAnalyzeImage,
+  onSendMessage
+}) => {
+  const [inputValue, setInputValue] = React.useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   
   const currency = localStorage.getItem('expenwall_currency') || DEFAULT_CURRENCY;
 
-  // Handle parsing of pasted JSON
+  // Auto-scroll to bottom
+  React.useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [state.messages]);
+
   const handleTextSubmit = async () => {
     if (!inputValue.trim()) return;
-    
     const text = inputValue.trim();
-    setMessages(prev => [...prev, { role: 'user', text: text }]);
     setInputValue('');
-    setIsProcessing(true);
-
-    try {
-      // 1. Attempt to parse as JSON first (User pasted external AI result)
-      // Remove potential markdown wrappers
-      const cleanText = text.replace(/```json|```/g, '').trim();
-      if (cleanText.startsWith('[') || cleanText.startsWith('{')) {
-         try {
-             let parsed = JSON.parse(cleanText);
-             // Normalize to array
-             if (!Array.isArray(parsed) && parsed.transactions) parsed = parsed.transactions;
-             if (!Array.isArray(parsed)) parsed = [parsed];
-
-             processDrafts(parsed);
-             setMessages(prev => [...prev, { role: 'bot', text: `I found ${parsed.length} transactions in your pasted text. Review them below.` }]);
-             setIsProcessing(false);
-             return;
-         } catch (e) {
-             // Fall through to normal message if not JSON
-         }
-      }
-
-      // 2. If not JSON, it's a chat message. Analyzer primarily works with Images or JSON.
-      setMessages(prev => [...prev, { role: 'bot', text: "I'm primarily designed to read JSON or Images. If you are chatting, please note I can't answer general questions yet." }]);
-      
-    } catch (err) {
-      setMessages(prev => [...prev, { role: 'bot', text: "Sorry, I couldn't process that text." }]);
-    } finally {
-      setIsProcessing(false);
-    }
+    await onSendMessage(text);
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (!apiKey) {
-      setMessages(prev => [...prev, { role: 'bot', text: "Please configure your API Key in Settings to use the Image Scanner." }]);
-      return;
+    if (file) {
+      await onAnalyzeImage(file);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
-
-    setMessages(prev => [...prev, { role: 'user', text: "Analyzing uploaded image..." }]);
-    setIsProcessing(true);
-
-    try {
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        const base64String = reader.result as string;
-        const base64Data = base64String.split(',')[1];
-        
-        try {
-          const result = await geminiService.analyzeBankStatement(base64Data, file.type, apiKey);
-          if (result.transactions && result.transactions.length > 0) {
-             processDrafts(result.transactions);
-             setMessages(prev => [...prev, { role: 'bot', text: `Success! I extracted ${result.transactions.length} transactions. Please review and save them.` }]);
-          } else {
-             setMessages(prev => [...prev, { role: 'bot', text: "I couldn't find any clear transactions in that image." }]);
-          }
-        } catch (apiError: any) {
-           setMessages(prev => [...prev, { role: 'bot', text: `Error: ${apiError.message}` }]);
-        } finally {
-          setIsProcessing(false);
-          if (fileInputRef.current) fileInputRef.current.value = '';
-        }
-      };
-      reader.readAsDataURL(file);
-    } catch (err) {
-       setIsProcessing(false);
-       setMessages(prev => [...prev, { role: 'bot', text: "Error reading file." }]);
-    }
-  };
-
-  const processDrafts = (rawTransactions: any[]) => {
-      const newDrafts: DraftTransaction[] = rawTransactions.map((t, idx) => ({
-          id: `temp-${Date.now()}-${idx}`,
-          merchant: t.merchant || "Unknown",
-          date: t.date || new Date().toISOString().split('T')[0],
-          amount: parseFloat(t.amount) || 0,
-          type: (t.type === 'income' || t.type === 'credit') ? 'income' : 'expense',
-          category: t.category || Category.OTHER
-      }));
-      setDrafts(prev => [...prev, ...newDrafts]);
   };
 
   const removeDraft = (id: string) => {
-    setDrafts(prev => prev.filter(d => d.id !== id));
+    const newDrafts = state.drafts.filter(d => d.id !== id);
+    onStateChange({ drafts: newDrafts });
   };
 
   const updateDraft = (id: string, field: keyof DraftTransaction, value: any) => {
-    setDrafts(prev => prev.map(d => d.id === id ? { ...d, [field]: value } : d));
+    const newDrafts = state.drafts.map(d => d.id === id ? { ...d, [field]: value } : d);
+    onStateChange({ drafts: newDrafts });
   };
 
   const handleSaveAll = async () => {
-    if (drafts.length === 0) return;
+    if (state.drafts.length === 0) return;
     
-    // Convert drafts to final Transaction format
-    const toSave: Omit<Transaction, 'id'>[] = drafts.map(d => ({
+    const toSave: Omit<Transaction, 'id'>[] = state.drafts.map(d => ({
         merchant: d.merchant,
         date: d.date,
         amount: d.amount,
         type: d.type,
         category: Object.values(Category).includes(d.category as Category) ? d.category as Category : Category.OTHER,
         currency: currency,
-        items: [] // Bulk statements usually don't have item details
+        items: [] 
     }));
 
     await onSaveTransactions(toSave);
-    setDrafts([]);
-    setMessages(prev => [...prev, { role: 'bot', text: `Saved ${toSave.length} transactions to your dashboard!` }]);
+  };
+
+  const handleClear = () => {
+    if (confirm("Clear all messages and drafts?")) {
+        onStateChange({ 
+            messages: [{ role: 'bot', text: 'Hello! Upload a bank statement image, or paste transaction JSON.' }], 
+            drafts: [] 
+        });
+    }
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-140px)] max-h-[800px] bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+    <div className="flex flex-col h-[calc(100vh-140px)] max-h-[800px] bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden relative">
       
+      {/* Header Actions */}
+      <div className="absolute top-4 right-4 z-10">
+        <button onClick={handleClear} className="p-2 bg-slate-100 hover:bg-slate-200 rounded-full text-slate-500 transition-colors" title="Reset">
+            <RotateCcw className="w-4 h-4" />
+        </button>
+      </div>
+
       {/* Chat Area */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50">
-        {messages.map((msg, idx) => (
+        {state.messages.map((msg, idx) => (
           <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`max-w-[80%] p-3 rounded-2xl text-sm ${
+            <div className={`max-w-[85%] p-3 rounded-2xl text-sm ${
               msg.role === 'user' 
-                ? 'bg-indigo-600 text-white rounded-br-none' 
+                ? 'bg-indigo-600 text-white rounded-br-none shadow-md' 
                 : 'bg-white border border-slate-200 text-slate-700 rounded-bl-none shadow-sm'
             }`}>
               {msg.text}
             </div>
           </div>
         ))}
-        {isProcessing && (
+        {state.isProcessing && (
            <div className="flex justify-start">
              <div className="bg-white border border-slate-200 p-3 rounded-2xl rounded-bl-none shadow-sm flex items-center space-x-2">
                <Loader2 className="w-4 h-4 animate-spin text-indigo-600" />
-               <span className="text-sm text-slate-500">Processing...</span>
+               <span className="text-sm text-slate-500">Processing with Gemini AI...</span>
              </div>
            </div>
         )}
+        <div ref={messagesEndRef} />
       </div>
 
-      {/* Drafts Review Area (Only visible if drafts exist) */}
-      {drafts.length > 0 && (
+      {/* Drafts Review Area */}
+      {state.drafts.length > 0 && (
         <div className="h-64 border-t border-slate-200 flex flex-col bg-white">
           <div className="p-2 bg-indigo-50 border-b border-indigo-100 flex justify-between items-center px-4">
-            <span className="text-xs font-bold text-indigo-800 uppercase tracking-wider">Review Drafts ({drafts.length})</span>
+            <div className="flex items-center space-x-2">
+                <span className="text-xs font-bold text-indigo-800 uppercase tracking-wider">Review Drafts ({state.drafts.length})</span>
+            </div>
             <button 
               onClick={handleSaveAll}
-              className="text-xs bg-indigo-600 text-white px-3 py-1.5 rounded-lg hover:bg-indigo-700 font-medium flex items-center"
+              className="text-xs bg-indigo-600 text-white px-3 py-1.5 rounded-lg hover:bg-indigo-700 font-medium flex items-center shadow-sm"
             >
               <Check className="w-3 h-3 mr-1" />
               Save All
             </button>
           </div>
           <div className="flex-1 overflow-y-auto p-2 space-y-2">
-             {drafts.map((draft) => (
+             {state.drafts.map((draft) => (
                 <div key={draft.id} className="flex flex-col md:flex-row gap-2 p-3 border border-slate-100 rounded-xl bg-white shadow-sm hover:border-indigo-200 transition-colors">
                    <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-2">
                       <input 
@@ -246,10 +190,13 @@ export const AnalyzerView: React.FC<AnalyzerViewProps> = ({ apiKey, onSaveTransa
           />
           <button 
             onClick={() => fileInputRef.current?.click()}
-            className="p-3 text-slate-500 hover:bg-slate-100 rounded-xl transition-colors"
+            className="p-3 text-slate-500 hover:bg-slate-100 rounded-xl transition-colors relative group"
             title="Upload Statement Image"
           >
             <ImageIcon className="w-5 h-5" />
+            <span className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 text-xs bg-slate-800 text-white px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                Scan Image (AI)
+            </span>
           </button>
           
           <div className="flex-1 relative">
@@ -262,22 +209,30 @@ export const AnalyzerView: React.FC<AnalyzerViewProps> = ({ apiKey, onSaveTransa
                   handleTextSubmit();
                 }
               }}
-              placeholder="Paste JSON here, or type a message..."
-              className="w-full pl-4 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none resize-none h-[50px] text-sm"
+              placeholder={state.drafts.length > 0 ? "Type to correct drafts (AI Mode)..." : "Paste JSON or chat..."}
+              className={`w-full pl-4 pr-10 py-3 bg-slate-50 border rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none resize-none h-[50px] text-sm ${
+                  state.drafts.length > 0 ? 'border-indigo-200 bg-indigo-50/30' : 'border-slate-200'
+              }`}
             />
           </div>
           
           <button 
             onClick={handleTextSubmit}
-            disabled={!inputValue.trim() || isProcessing}
+            disabled={!inputValue.trim() || state.isProcessing}
             className="p-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 disabled:opacity-50 transition-colors"
           >
-            <Send className="w-5 h-5" />
+            {state.drafts.length > 0 ? <Bot className="w-5 h-5" /> : <Send className="w-5 h-5" />}
           </button>
         </div>
         <div className="mt-2 text-[10px] text-slate-400 flex justify-between px-1">
-           <span>Use the Gemini App to generate JSON for free and paste it here!</span>
-           <span>Image upload uses your API Key</span>
+           {state.drafts.length > 0 ? (
+               <span className="text-indigo-500 font-medium flex items-center">
+                   <Bot className="w-3 h-3 mr-1"/>
+                   AI Correction Mode: Chat to fix mistakes (e.g. "Change IDFC to Transport")
+               </span>
+           ) : (
+               <span>Paste JSON for Local Mode, or Upload Image for AI Mode</span>
+           )}
         </div>
       </div>
     </div>

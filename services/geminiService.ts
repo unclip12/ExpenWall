@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { ReceiptData, StatementData } from "../types";
+import { ReceiptData, StatementData, DraftTransaction } from "../types";
 
 const processReceiptImage = async (base64Image: string, mimeType: string, apiKey: string): Promise<ReceiptData> => {
   try {
@@ -91,7 +91,12 @@ const processReceiptImage = async (base64Image: string, mimeType: string, apiKey
   }
 };
 
-const analyzeBankStatement = async (base64Image: string, mimeType: string, apiKey: string): Promise<StatementData> => {
+const analyzeBankStatement = async (
+    base64Image: string, 
+    mimeType: string, 
+    apiKey: string,
+    historyContext?: string
+): Promise<StatementData> => {
     try {
         if (!apiKey) throw new Error("API Key is missing.");
 
@@ -111,6 +116,7 @@ const analyzeBankStatement = async (base64Image: string, mimeType: string, apiKe
                            - 'UPI/12345/Swiggy/...' -> 'Swiggy'
                            - 'POS/TERMINAL 1/STARBUCKS' -> 'Starbucks'
                            - 'AMZN Pay India Pvt' -> 'Amazon Pay'
+                           - 'IDFC FAS' -> 'Fastag' (unless overridden by context)
                            - Remove dates or ref numbers from the name.
                            - Keep the name simple and readable.
                         
@@ -118,14 +124,19 @@ const analyzeBankStatement = async (base64Image: string, mimeType: string, apiKe
                            - Look for 'Cr', 'Credit', '+' or columns indicating Deposit/Income. Mark as 'income'.
                            - Look for 'Dr', 'Debit', '-' or columns indicating Withdrawal/Spend. Mark as 'expense'.
                         
-                        3. **Category**: Auto-categorize based on the merchant name (e.g., Swiggy -> Food, Uber -> Transport).
+                        3. **Category**: Auto-categorize based on the merchant name.
+                           - Use the provided HISTORY CONTEXT to match user preferences if available.
+                           - E.g. If history says 'IDFC FAS' is 'Transportation', use that.
                         
                         4. **Date**: Format YYYY-MM-DD. If year is missing in row, use ${currentYear}.`
                     }
                 ]
             },
             config: {
-                systemInstruction: "You are a specialized financial data extractor. You clean up messy bank transaction strings into human-readable merchant names. You accurately distinguish between Income (Credits) and Expenses (Debits).",
+                systemInstruction: `You are a specialized financial data extractor. You clean up messy bank transaction strings into human-readable merchant names. 
+                
+                HISTORY CONTEXT (Use this to learn user preferences):
+                ${historyContext || "No history available."}`,
                 responseMimeType: "application/json",
                 responseSchema: {
                     type: Type.OBJECT,
@@ -161,6 +172,70 @@ const analyzeBankStatement = async (base64Image: string, mimeType: string, apiKe
     }
 }
 
+const refineBankStatement = async (
+    currentDrafts: DraftTransaction[],
+    userInstruction: string,
+    apiKey: string
+): Promise<DraftTransaction[]> => {
+    try {
+        if (!apiKey) throw new Error("API Key is missing.");
+        const ai = new GoogleGenAI({ apiKey });
+
+        const response = await ai.models.generateContent({
+            model: 'gemini-3-flash-preview',
+            contents: {
+                parts: [
+                    {
+                        text: `I have a list of extracted transactions. The user wants to correct them or refine them.
+                        
+                        Current Data: ${JSON.stringify(currentDrafts)}
+                        
+                        User Instruction: "${userInstruction}"
+                        
+                        Please return the updated list of transactions in JSON format. Apply the user's logic to all relevant items.`
+                    }
+                ]
+            },
+            config: {
+                systemInstruction: "You are a financial data assistant. You take a JSON list of transactions and a user correction request, and you return the corrected JSON list.",
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: Type.OBJECT,
+                    properties: {
+                        transactions: {
+                            type: Type.ARRAY,
+                            items: {
+                                type: Type.OBJECT,
+                                properties: {
+                                    // Including ID to map back if needed, but usually we just replace the list
+                                    id: { type: Type.STRING }, 
+                                    merchant: { type: Type.STRING },
+                                    date: { type: Type.STRING },
+                                    amount: { type: Type.NUMBER },
+                                    type: { type: Type.STRING, enum: ['expense', 'income'] },
+                                    category: { type: Type.STRING }
+                                },
+                                required: ["merchant", "amount", "type"]
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        if (response.text) {
+             const cleanText = response.text.replace(/```json|```/g, '').trim();
+             const data = JSON.parse(cleanText) as StatementData;
+             return data.transactions as unknown as DraftTransaction[];
+        }
+        throw new Error("No refinement data returned.");
+
+    } catch (error) {
+        handleGeminiError(error);
+        throw error;
+    }
+}
+
 const handleGeminiError = (error: any) => {
     console.error("Gemini Error:", error);
     let errorMessage = error.message || "Unknown error";
@@ -171,5 +246,6 @@ const handleGeminiError = (error: any) => {
 
 export const geminiService = {
   processReceiptImage,
-  analyzeBankStatement
+  analyzeBankStatement,
+  refineBankStatement
 };

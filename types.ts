@@ -64,3 +64,18 @@ export interface UserProfile {
   apiKey?: string;
   updatedAt?: any;
 }
+
+export interface DraftTransaction {
+  id: string;
+  merchant: string;
+  date: string;
+  amount: number;
+  type: 'expense' | 'income';
+  category: string;
+}
+
+export interface AnalyzerState {
+  messages: { role: 'user' | 'bot'; text: string }[];
+  drafts: DraftTransaction[];
+  isProcessing: boolean;
+}

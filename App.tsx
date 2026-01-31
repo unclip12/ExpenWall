@@ -10,8 +10,9 @@ import { LoginView } from './components/LoginView';
 import { SettingsView } from './components/SettingsView';
 import { AnalyzerView } from './components/AnalyzerView';
 import { NAV_ITEMS } from './constants';
-import { Transaction, BuyingItem } from './types';
+import { Transaction, BuyingItem, AnalyzerState, Category, DraftTransaction } from './types';
 import { subscribeToTransactions, addTransactionToDb, getUserProfile, subscribeToBuyingList } from './services/firestoreService';
+import { geminiService } from './services/geminiService';
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -29,6 +30,13 @@ const App: React.FC = () => {
   // State for User's Personal API Key
   const [userApiKey, setUserApiKey] = useState<string>('');
 
+  // --- ANALYZER STATE (Lifted Up) ---
+  const [analyzerState, setAnalyzerState] = useState<AnalyzerState>({
+    messages: [{ role: 'bot', text: 'Hello! Upload a bank statement image. I will learn from your past transactions to categorize them correctly.' }],
+    drafts: [],
+    isProcessing: false
+  });
+
   // 0. Configuration Check
   if (!auth) {
     return (
@@ -40,14 +48,6 @@ const App: React.FC = () => {
         <p className="text-slate-600 max-w-md mb-6">
           The app could not connect to Firebase. This usually happens due to missing API keys or a configuration issue.
         </p>
-        <div className="bg-white p-4 rounded-lg shadow-sm border border-slate-200 text-left w-full max-w-lg">
-          <p className="text-xs font-mono text-slate-500 mb-2">Check your .env or Deployment Settings:</p>
-          <code className="text-xs text-indigo-600 block bg-slate-50 p-2 rounded">
-            VITE_FIREBASE_API_KEY=...<br/>
-            VITE_FIREBASE_AUTH_DOMAIN=...<br/>
-            VITE_FIREBASE_PROJECT_ID=...
-          </code>
-        </div>
       </div>
     );
   }
@@ -102,12 +102,140 @@ const App: React.FC = () => {
     };
   }, [user]);
 
+  // --- ANALYZER LOGIC ---
+  
+  // Helper to create a "Knowledge Base" from history
+  const getHistoryContext = () => {
+      const mapping: Record<string, string> = {};
+      transactions.forEach(t => {
+          // Store merchant -> category mapping
+          // If duplicate, later ones overwrite (basic learning)
+          if (t.merchant && t.category) {
+            mapping[t.merchant] = t.category;
+          }
+      });
+      return JSON.stringify(mapping);
+  }
+
+  const handleAnalyzeImage = async (file: File) => {
+      if (!userApiKey) {
+          setAnalyzerState(prev => ({ ...prev, messages: [...prev.messages, { role: 'bot', text: "Please configure your API Key in Settings first." }] }));
+          return;
+      }
+
+      setAnalyzerState(prev => ({ 
+          ...prev, 
+          isProcessing: true, 
+          messages: [...prev.messages, { role: 'user', text: "Analyzing uploaded image..." }] 
+      }));
+
+      try {
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+            const base64String = reader.result as string;
+            const base64Data = base64String.split(',')[1];
+            
+            try {
+                // Pass history context for learning!
+                const historyContext = getHistoryContext();
+                const result = await geminiService.analyzeBankStatement(base64Data, file.type, userApiKey, historyContext);
+                
+                if (result.transactions && result.transactions.length > 0) {
+                    const newDrafts: DraftTransaction[] = result.transactions.map((t, idx) => ({
+                        id: `temp-${Date.now()}-${idx}`,
+                        merchant: t.merchant || "Unknown",
+                        date: t.date || new Date().toISOString().split('T')[0],
+                        amount: parseFloat(String(t.amount)) || 0,
+                        type: (t.type === 'income') ? 'income' : 'expense',
+                        category: t.category || Category.OTHER
+                    }));
+
+                    setAnalyzerState(prev => ({ 
+                        ...prev, 
+                        isProcessing: false,
+                        drafts: [...prev.drafts, ...newDrafts],
+                        messages: [...prev.messages, { role: 'bot', text: `Done! I found ${newDrafts.length} transactions based on your history preferences.` }]
+                    }));
+                } else {
+                    setAnalyzerState(prev => ({ ...prev, isProcessing: false, messages: [...prev.messages, { role: 'bot', text: "I couldn't find clear transactions." }] }));
+                }
+            } catch (err: any) {
+                setAnalyzerState(prev => ({ ...prev, isProcessing: false, messages: [...prev.messages, { role: 'bot', text: `Error: ${err.message}` }] }));
+            }
+        };
+        reader.readAsDataURL(file);
+      } catch (e) {
+         setAnalyzerState(prev => ({ ...prev, isProcessing: false, messages: [...prev.messages, { role: 'bot', text: "File read error." }] }));
+      }
+  };
+
+  const handleAnalyzerMessage = async (text: string) => {
+      setAnalyzerState(prev => ({ 
+          ...prev, 
+          messages: [...prev.messages, { role: 'user', text: text }] 
+      }));
+
+      // Check if we are in "Refinement Mode" (Drafts exist)
+      if (analyzerState.drafts.length > 0) {
+           if (!userApiKey) {
+             setAnalyzerState(prev => ({ ...prev, messages: [...prev.messages, { role: 'bot', text: "I need an API Key to perform AI corrections." }] }));
+             return;
+           }
+
+           setAnalyzerState(prev => ({ ...prev, isProcessing: true }));
+           try {
+               const refinedDrafts = await geminiService.refineBankStatement(analyzerState.drafts, text, userApiKey);
+               // Preserve IDs if possible, or mapping relies on AI returning consistent data
+               // Simplified: Just replace the list with what AI returns
+               setAnalyzerState(prev => ({
+                   ...prev,
+                   isProcessing: false,
+                   drafts: refinedDrafts, // Replace with refined versions
+                   messages: [...prev.messages, { role: 'bot', text: "I've updated the drafts based on your feedback." }]
+               }));
+           } catch (err: any) {
+               setAnalyzerState(prev => ({ ...prev, isProcessing: false, messages: [...prev.messages, { role: 'bot', text: `Correction failed: ${err.message}` }] }));
+           }
+           return;
+      }
+
+      // Normal Mode (JSON Parsing or Chat)
+      setAnalyzerState(prev => ({ ...prev, isProcessing: true }));
+      try {
+          const cleanText = text.replace(/```json|```/g, '').trim();
+          if (cleanText.startsWith('[') || cleanText.startsWith('{')) {
+              let parsed = JSON.parse(cleanText);
+              if (!Array.isArray(parsed) && parsed.transactions) parsed = parsed.transactions;
+              if (!Array.isArray(parsed)) parsed = [parsed];
+
+              const newDrafts: DraftTransaction[] = parsed.map((t: any, idx: number) => ({
+                id: `manual-${Date.now()}-${idx}`,
+                merchant: t.merchant || "Unknown",
+                date: t.date || new Date().toISOString().split('T')[0],
+                amount: parseFloat(t.amount) || 0,
+                type: (t.type === 'income') ? 'income' : 'expense',
+                category: t.category || Category.OTHER
+              }));
+
+              setAnalyzerState(prev => ({
+                  ...prev,
+                  isProcessing: false,
+                  drafts: [...prev.drafts, ...newDrafts],
+                  messages: [...prev.messages, { role: 'bot', text: `Parsed ${newDrafts.length} transactions from text.` }]
+              }));
+          } else {
+              setAnalyzerState(prev => ({ ...prev, isProcessing: false, messages: [...prev.messages, { role: 'bot', text: "I can't answer general questions yet. Please upload an image or paste JSON." }] }));
+          }
+      } catch (err) {
+          setAnalyzerState(prev => ({ ...prev, isProcessing: false, messages: [...prev.messages, { role: 'bot', text: "That doesn't look like valid JSON." }] }));
+      }
+  };
+
   const handleAddTransaction = async (newTx: Omit<Transaction, 'id'>) => {
     if (!user) {
       alert("You must be signed in to save transactions.");
       return;
     }
-
     setIsSaving(true);
     try {
       await addTransactionToDb(newTx, user.uid);
@@ -125,8 +253,9 @@ const App: React.FC = () => {
       if(!user) return;
       setIsSaving(true);
       try {
-          // Add them sequentially to ensure order or just parallel
           await Promise.all(newTxs.map(tx => addTransactionToDb(tx, user.uid)));
+          // Clear drafts after saving
+          setAnalyzerState(prev => ({ ...prev, drafts: [], messages: [...prev.messages, { role: 'bot', text: `Saved ${newTxs.length} transactions to your dashboard!` }] }));
           setActiveTab('dashboard');
       } catch (error) {
           console.error("Bulk save error", error);
@@ -193,7 +322,16 @@ const App: React.FC = () => {
       case 'transactions':
         return <TransactionList transactions={transactions} />;
       case 'analyzer':
-        return <AnalyzerView apiKey={userApiKey} onSaveTransactions={handleBulkAddTransactions} />;
+        return (
+            <AnalyzerView 
+                apiKey={userApiKey} 
+                state={analyzerState}
+                onStateChange={(newState) => setAnalyzerState(prev => ({ ...prev, ...newState }))}
+                onSaveTransactions={handleBulkAddTransactions}
+                onAnalyzeImage={handleAnalyzeImage}
+                onSendMessage={handleAnalyzerMessage}
+            />
+        );
       case 'buying-list':
         return <BuyingListView items={buyingItems} userId={user.uid} />;
       case 'settings':
@@ -222,7 +360,7 @@ const App: React.FC = () => {
     if (showAddModal) return 'Enter details manually or scan a receipt.';
     if (activeTab === 'buying-list') return 'Track items you plan to purchase.';
     if (activeTab === 'settings') return 'Configure your preferences.';
-    if (activeTab === 'analyzer') return 'Scan bank statements or paste data.';
+    if (activeTab === 'analyzer') return 'Scan bank statements, or chat to refine results.';
     return 'Welcome back! Here is your financial summary.';
   }
 
