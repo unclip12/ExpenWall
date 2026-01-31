@@ -1,21 +1,19 @@
 import { db } from "../firebase";
-import { Transaction, UserProfile } from "../types";
+import { Transaction, UserProfile, BuyingItem } from "../types";
 import firebase from "firebase/compat/app";
 
 const COLLECTION_NAME = "transactions";
+const BUYING_COLLECTION = "buying_list";
 const USERS_COLLECTION = "users";
 
-/**
- * Subscribes to the transactions collection for a specific user.
- * Sorting is done client-side to avoid needing a composite index immediately.
- */
+// --- Transactions ---
+
 export const subscribeToTransactions = (userId: string, onUpdate: (data: Transaction[]) => void) => {
   if (!db) {
     console.warn("Firestore is not initialized");
     return () => {};
   }
 
-  // v8 Syntax: db.collection(...)
   return db.collection(COLLECTION_NAME)
     .where("userId", "==", userId)
     .onSnapshot((snapshot) => {
@@ -24,21 +22,14 @@ export const subscribeToTransactions = (userId: string, onUpdate: (data: Transac
         ...doc.data()
       })) as Transaction[];
       
-      // Sort by date descending (newest first) in memory
       transactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
       
       onUpdate(transactions);
     }, (error) => {
       console.error("Error fetching transactions:", error);
-      if ((error as any).code === 'permission-denied') {
-        console.warn("Permission denied. Please ensure your Firestore Security Rules allow access to the 'transactions' collection for authenticated users.");
-      }
     });
 };
 
-/**
- * Adds a new transaction to Firestore for the specific user.
- */
 export const addTransactionToDb = async (transaction: Omit<Transaction, "id">, userId: string) => {
   if (!db) throw new Error("Firestore not initialized");
 
@@ -46,7 +37,7 @@ export const addTransactionToDb = async (transaction: Omit<Transaction, "id">, u
     await db.collection(COLLECTION_NAME).add({
       ...transaction,
       userId,
-      createdAt: firebase.firestore.FieldValue.serverTimestamp() // Uses server timestamp (v8 syntax)
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
   } catch (error) {
     console.error("Error adding transaction: ", error);
@@ -54,9 +45,56 @@ export const addTransactionToDb = async (transaction: Omit<Transaction, "id">, u
   }
 };
 
-/**
- * Saves the user's API Key to their profile document.
- */
+// --- Buying List ---
+
+export const subscribeToBuyingList = (userId: string, onUpdate: (data: BuyingItem[]) => void) => {
+  if (!db) return () => {};
+
+  return db.collection(BUYING_COLLECTION)
+    .where("userId", "==", userId)
+    .onSnapshot((snapshot) => {
+      const items = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as BuyingItem[];
+      
+      // Sort: Unbought first, then by creation time
+      items.sort((a, b) => {
+        if (a.isBought === b.isBought) {
+          // If both bought or both unbought, sort by created time (if available) or name
+          return 0; 
+        }
+        return a.isBought ? 1 : -1; // Unbought comes first
+      });
+
+      onUpdate(items);
+    }, (error) => {
+      console.error("Error fetching buying list:", error);
+    });
+};
+
+export const addBuyingItem = async (item: Omit<BuyingItem, "id" | "userId">, userId: string) => {
+  if (!db) throw new Error("Firestore not initialized");
+  
+  await db.collection(BUYING_COLLECTION).add({
+    ...item,
+    userId,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  });
+};
+
+export const updateBuyingItemStatus = async (itemId: string, isBought: boolean) => {
+  if (!db) return;
+  await db.collection(BUYING_COLLECTION).doc(itemId).update({ isBought });
+};
+
+export const deleteBuyingItem = async (itemId: string) => {
+  if (!db) return;
+  await db.collection(BUYING_COLLECTION).doc(itemId).delete();
+};
+
+// --- User Profile ---
+
 export const saveUserApiKey = async (userId: string, apiKey: string) => {
   if (!db) throw new Error("Firestore not initialized");
   
@@ -66,9 +104,6 @@ export const saveUserApiKey = async (userId: string, apiKey: string) => {
   }, { merge: true });
 };
 
-/**
- * Retrieves the user's API Key.
- */
 export const getUserProfile = async (userId: string): Promise<UserProfile | null> => {
   if (!db) return null;
   

@@ -1,5 +1,5 @@
 import { Category } from './types';
-import { LayoutDashboard, PlusCircle, Receipt, Settings } from 'lucide-react';
+import { LayoutDashboard, PlusCircle, Receipt, Settings, ShoppingCart } from 'lucide-react';
 
 export const CATEGORIES = Object.values(Category);
 
@@ -7,6 +7,7 @@ export const NAV_ITEMS = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'transactions', label: 'Transactions', icon: Receipt },
   { id: 'add', label: 'Add New', icon: PlusCircle },
+  { id: 'buying-list', label: 'Buying List', icon: ShoppingCart },
   { id: 'settings', label: 'Settings', icon: Settings },
 ];
 

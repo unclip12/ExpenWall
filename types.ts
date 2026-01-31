@@ -27,6 +27,16 @@ export interface Transaction {
   receiptUrl?: string; // Base64 of receipt if uploaded
 }
 
+export interface BuyingItem {
+  id: string;
+  userId?: string;
+  name: string;
+  estimatedPrice: number;
+  currency: string;
+  isBought: boolean;
+  createdAt?: any;
+}
+
 export interface ReceiptData {
   merchant: string;
   date: string;

@@ -5,16 +5,21 @@ import { auth } from './firebase';
 import { Dashboard } from './components/Dashboard';
 import { TransactionList } from './components/TransactionList';
 import { TransactionForm } from './components/TransactionForm';
+import { BuyingListView } from './components/BuyingListView';
 import { LoginView } from './components/LoginView';
 import { SettingsView } from './components/SettingsView';
 import { NAV_ITEMS } from './constants';
-import { Transaction } from './types';
-import { subscribeToTransactions, addTransactionToDb, getUserProfile } from './services/firestoreService';
+import { Transaction, BuyingItem } from './types';
+import { subscribeToTransactions, addTransactionToDb, getUserProfile, subscribeToBuyingList } from './services/firestoreService';
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  
+  // Data State
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [buyingItems, setBuyingItems] = useState<BuyingItem[]>([]);
+  
   const [showAddModal, setShowAddModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -57,13 +62,14 @@ const App: React.FC = () => {
       if (!currentUser) {
         setLoading(false);
         setTransactions([]);
+        setBuyingItems([]);
         setUserApiKey('');
       }
     });
     return () => unsubscribe();
   }, []);
 
-  // Fetch Data (Transactions & API Key) once User is authenticated
+  // Fetch Data (Transactions, Buying List, API Key) once User is authenticated
   useEffect(() => {
     if (!user) {
         return;
@@ -74,7 +80,12 @@ const App: React.FC = () => {
       setTransactions(data);
     });
 
-    // 2. Fetch User Profile (API Key)
+    // 2. Subscribe to Buying List
+    const unsubscribeBuyingList = subscribeToBuyingList(user.uid, (data) => {
+      setBuyingItems(data);
+    });
+
+    // 3. Fetch User Profile (API Key)
     const fetchProfile = async () => {
       const profile = await getUserProfile(user.uid);
       if (profile && profile.apiKey) {
@@ -84,7 +95,10 @@ const App: React.FC = () => {
     };
     fetchProfile();
 
-    return () => unsubscribeTransactions();
+    return () => {
+      unsubscribeTransactions();
+      unsubscribeBuyingList();
+    };
   }, [user]);
 
   const handleAddTransaction = async (newTx: Omit<Transaction, 'id'>) => {
@@ -153,6 +167,8 @@ const App: React.FC = () => {
         return <Dashboard transactions={transactions} />;
       case 'transactions':
         return <TransactionList transactions={transactions} />;
+      case 'buying-list':
+        return <BuyingListView items={buyingItems} userId={user.uid} />;
       case 'settings':
         return (
           <SettingsView 
@@ -165,6 +181,21 @@ const App: React.FC = () => {
         return <Dashboard transactions={transactions} />;
     }
   };
+
+  const getPageTitle = () => {
+    if (showAddModal) return 'New Transaction';
+    if (activeTab === 'buying-list') return 'Buying List';
+    if (activeTab === 'dashboard') return 'Overview';
+    if (activeTab === 'settings') return 'Settings';
+    return 'Transactions';
+  }
+
+  const getPageSubtitle = () => {
+    if (showAddModal) return 'Enter details manually or scan a receipt.';
+    if (activeTab === 'buying-list') return 'Track items you plan to purchase.';
+    if (activeTab === 'settings') return 'Configure your preferences.';
+    return 'Welcome back! Here is your financial summary.';
+  }
 
   return (
     <div className="flex min-h-screen bg-slate-50 text-slate-900 font-sans">
@@ -291,10 +322,10 @@ const App: React.FC = () => {
             <div className="flex justify-between items-start">
                 <div>
                     <h1 className="text-2xl font-bold text-slate-800">
-                    {showAddModal ? 'New Transaction' : activeTab === 'dashboard' ? 'Overview' : activeTab === 'settings' ? 'Settings' : 'Transactions'}
+                      {getPageTitle()}
                     </h1>
                     <p className="text-slate-500 text-sm">
-                    {showAddModal ? 'Enter details manually or scan a receipt.' : activeTab === 'settings' ? 'Configure your preferences.' : 'Welcome back! Here is your financial summary.'}
+                      {getPageSubtitle()}
                     </p>
                 </div>
             </div>
