@@ -18,19 +18,24 @@ if (!firebaseConfig.apiKey) {
 }
 
 // Initialize Firebase
-// Using v8 check to avoid double initialization
-if (!firebase.apps.length) {
-  try {
-    firebase.initializeApp(firebaseConfig);
-  } catch (error) {
-    console.error("Firebase Initialization Error:", error);
-  }
-} else {
-  firebase.app(); // if already initialized, use that one
-}
+let app;
+let auth: firebase.auth.Auth;
+let db: firebase.firestore.Firestore;
 
-const auth = firebase.auth();
-const db = firebase.firestore();
+try {
+  // Only initialize if config is present to avoid immediate crash
+  if (firebaseConfig.apiKey) {
+    if (!firebase.apps.length) {
+      app = firebase.initializeApp(firebaseConfig);
+    } else {
+      app = firebase.app();
+    }
+    auth = firebase.auth();
+    db = firebase.firestore();
+  }
+} catch (error) {
+  console.error("Firebase Initialization Error:", error);
+}
 
 /**
  * Attempts to log in using a "Secret ID".
@@ -38,6 +43,8 @@ const db = firebase.firestore();
  * If the user doesn't exist, it automatically registers them.
  */
 export const loginWithSecretId = async (secretId: string) => {
+  if (!auth) throw new Error("Firebase auth is not initialized. Check your API keys.");
+
   // sanitize the ID to ensure valid email format
   const sanitizedId = secretId.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
   
@@ -51,7 +58,7 @@ export const loginWithSecretId = async (secretId: string) => {
   try {
     return await auth.signInWithEmailAndPassword(email, password);
   } catch (error: any) {
-    // If user not found or invalid credential (which might mean user not found in newer API), try to register
+    // If user not found or invalid credential, try to register
     if (
       error.code === 'auth/user-not-found' || 
       error.code === 'auth/invalid-credential' || 
@@ -71,4 +78,4 @@ export const loginWithSecretId = async (secretId: string) => {
   }
 };
 
-export { firebase, auth, db };
+export { app, auth, db };

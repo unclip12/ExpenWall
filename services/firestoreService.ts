@@ -1,5 +1,6 @@
 import { db } from "../firebase";
 import { Transaction } from "../types";
+import firebase from "firebase/app";
 
 const COLLECTION_NAME = "transactions";
 
@@ -8,35 +9,43 @@ const COLLECTION_NAME = "transactions";
  * Sorting is done client-side to avoid needing a composite index immediately.
  */
 export const subscribeToTransactions = (userId: string, onUpdate: (data: Transaction[]) => void) => {
-  // Query only the current user's transactions
-  // Using v8 chained syntax
-  return db.collection(COLLECTION_NAME).where("userId", "==", userId).onSnapshot((snapshot) => {
-    const transactions = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    })) as Transaction[];
-    
-    // Sort by date descending (newest first) in memory
-    transactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    
-    onUpdate(transactions);
-  }, (error) => {
-    console.error("Error fetching transactions:", error);
-    if (error.code === 'permission-denied') {
-      console.warn("Permission denied. Please ensure your Firestore Security Rules allow access to the 'transactions' collection for authenticated users.");
-    }
-  });
+  if (!db) {
+    console.warn("Firestore is not initialized");
+    return () => {};
+  }
+
+  // v8 Syntax: db.collection(...)
+  return db.collection(COLLECTION_NAME)
+    .where("userId", "==", userId)
+    .onSnapshot((snapshot) => {
+      const transactions = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as Transaction[];
+      
+      // Sort by date descending (newest first) in memory
+      transactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      
+      onUpdate(transactions);
+    }, (error) => {
+      console.error("Error fetching transactions:", error);
+      if ((error as any).code === 'permission-denied') {
+        console.warn("Permission denied. Please ensure your Firestore Security Rules allow access to the 'transactions' collection for authenticated users.");
+      }
+    });
 };
 
 /**
  * Adds a new transaction to Firestore for the specific user.
  */
 export const addTransactionToDb = async (transaction: Omit<Transaction, "id">, userId: string) => {
+  if (!db) throw new Error("Firestore not initialized");
+
   try {
     await db.collection(COLLECTION_NAME).add({
       ...transaction,
       userId,
-      createdAt: new Date() // Useful for debugging or sorting by insertion time later
+      createdAt: firebase.firestore.FieldValue.serverTimestamp() // Uses server timestamp (v8 syntax)
     });
   } catch (error) {
     console.error("Error adding transaction: ", error);

@@ -52,6 +52,22 @@
         }
       }
     </style>
+    <!-- Critical Error Handler -->
+    <script>
+      window.addEventListener('error', function(event) {
+        var root = document.getElementById('root');
+        if (root && !root.hasChildNodes()) {
+           root.innerHTML = '<div style="padding: 24px; font-family: system-ui; color: #333; max-width: 600px; margin: 20px auto; background: #fff; border-radius: 8px; border: 1px solid #e5e7eb; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">' +
+            '<h2 style="color: #ef4444; margin-bottom: 12px;">Startup Error</h2>' +
+            '<p style="margin-bottom: 16px;">The application crashed before it could start.</p>' +
+            '<div style="background: #f1f5f9; padding: 12px; border-radius: 6px; overflow-x: auto; margin-bottom: 16px;">' +
+              '<code style="font-family: monospace; color: #dc2626;">' + event.message + '</code>' +
+            '</div>' +
+            '<p style="font-size: 14px; color: #6b7280;">Please check your browser console (F12) and ensure your .env variables (Firebase/Gemini API keys) are set correctly.</p>' +
+           '</div>';
+        }
+      });
+    </script>
 <script type="importmap">
 {
   "imports": {

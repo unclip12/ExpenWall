@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Menu, X, PlusCircle, Wallet, Loader2, LogOut, AlertTriangle } from 'lucide-react';
-import firebase from 'firebase/app';
+import firebase from "firebase/app";
 import { auth } from './firebase';
 import { Dashboard } from './components/Dashboard';
 import { TransactionList } from './components/TransactionList';
@@ -30,7 +30,7 @@ const App: React.FC = () => {
         </div>
         <h1 className="text-2xl font-bold text-slate-800 mb-2">Configuration Missing</h1>
         <p className="text-slate-600 max-w-md mb-6">
-          The app could not connect to Firebase. This usually means the <code>VITE_FIREBASE_API_KEY</code> and associated variables are not set in your environment.
+          The app could not connect to Firebase. This usually happens due to missing API keys or a configuration issue.
         </p>
         <div className="bg-white p-4 rounded-lg shadow-sm border border-slate-200 text-left w-full max-w-lg">
           <p className="text-xs font-mono text-slate-500 mb-2">Check your .env or Deployment Settings:</p>
@@ -46,6 +46,10 @@ const App: React.FC = () => {
 
   // Handle Authentication
   useEffect(() => {
+    if (!auth) {
+        setLoading(false);
+        return;
+    }
     const unsubscribe = auth.onAuthStateChanged((currentUser) => {
       setUser(currentUser);
       setLoading(false);
@@ -87,7 +91,7 @@ const App: React.FC = () => {
   };
 
   const handleLogout = () => {
-    auth.signOut();
+    if (auth) auth.signOut();
   };
 
   // 1. Loading State
