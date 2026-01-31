@@ -32,6 +32,7 @@ export const subscribeToTransactions = (userId: string, onUpdate: (data: Transac
 
 export const addTransactionToDb = async (transaction: Omit<Transaction, "id">, userId: string) => {
   if (!db) throw new Error("Firestore not initialized");
+  if (!userId) throw new Error("User ID is required to add transaction");
 
   try {
     await db.collection(COLLECTION_NAME).add({
@@ -94,13 +95,16 @@ export const subscribeToBuyingList = (userId: string, onUpdate: (data: BuyingIte
 
 export const addBuyingItem = async (item: Omit<BuyingItem, "id" | "userId">, userId: string) => {
   if (!db) throw new Error("Firestore not initialized");
+  if (!userId) throw new Error("User ID is required to add buying item");
   
   try {
-    await db.collection(BUYING_COLLECTION).add({
+    const payload = {
       ...item,
       userId,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
+    };
+    
+    await db.collection(BUYING_COLLECTION).add(payload);
   } catch (error) {
     console.error("Error adding buying item:", error);
     throw error;
@@ -113,6 +117,7 @@ export const updateBuyingItemStatus = async (itemId: string, isBought: boolean) 
       await db.collection(BUYING_COLLECTION).doc(itemId).update({ isBought });
   } catch (error) {
       console.error("Error updating buying item status:", error);
+      throw error; // Re-throw to handle in UI if needed
   }
 };
 
@@ -122,6 +127,7 @@ export const deleteBuyingItem = async (itemId: string) => {
     await db.collection(BUYING_COLLECTION).doc(itemId).delete();
   } catch (error) {
     console.error("Error deleting buying item:", error);
+    throw error;
   }
 };
 
