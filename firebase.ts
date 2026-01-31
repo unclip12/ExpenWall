@@ -12,9 +12,15 @@ const firebaseConfig = {
   appId: (import.meta as any).env.VITE_FIREBASE_APP_ID
 };
 
-// Simple validation to warn developer if keys are missing
-if (!firebaseConfig.apiKey) {
-  console.error("Expenwall Error: Firebase API keys are missing. Please check your .env file or Vercel/Netlify environment variables.");
+// Diagnostics: Check which keys are missing
+const missingKeys = [];
+if (!firebaseConfig.apiKey) missingKeys.push("VITE_FIREBASE_API_KEY");
+if (!firebaseConfig.authDomain) missingKeys.push("VITE_FIREBASE_AUTH_DOMAIN");
+if (!firebaseConfig.projectId) missingKeys.push("VITE_FIREBASE_PROJECT_ID");
+
+if (missingKeys.length > 0) {
+  console.error("Expenwall Configuration Error: The following keys are missing:", missingKeys.join(", "));
+  console.error("If you are deploying via GitHub Actions, ensure these are added to Repository Settings > Secrets and included in the 'env' section of deploy.yml");
 }
 
 // Initialize Firebase
