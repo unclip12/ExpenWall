@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Trash2, CheckCircle, Circle, ShoppingCart, DollarSign } from 'lucide-react';
+import { Plus, Trash2, CheckCircle, Circle, ShoppingCart, AlertCircle } from 'lucide-react';
 import { BuyingItem } from '../types';
 import { CURRENCIES, DEFAULT_CURRENCY } from '../constants';
 import { addBuyingItem, updateBuyingItemStatus, deleteBuyingItem } from '../services/firestoreService';
@@ -13,6 +13,7 @@ export const BuyingListView: React.FC<BuyingListViewProps> = ({ items, userId })
   const [newItemName, setNewItemName] = useState('');
   const [newItemPrice, setNewItemPrice] = useState('');
   const [isAdding, setIsAdding] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const currencyCode = localStorage.getItem('expenwall_currency') || DEFAULT_CURRENCY;
   const currencySymbol = CURRENCIES.find(c => c.code === currencyCode)?.symbol || '$';
@@ -22,17 +23,19 @@ export const BuyingListView: React.FC<BuyingListViewProps> = ({ items, userId })
     if (!newItemName.trim()) return;
 
     setIsAdding(true);
+    setError(null);
     try {
       await addBuyingItem({
         name: newItemName,
-        estimatedPrice: parseFloat(newItemPrice) || 0,
+        estimatedPrice: newItemPrice ? parseFloat(newItemPrice) : 0,
         currency: currencyCode,
         isBought: false
       }, userId);
       setNewItemName('');
       setNewItemPrice('');
-    } catch (error) {
-      console.error("Failed to add item", error);
+    } catch (err) {
+      console.error("Failed to add item", err);
+      setError("Failed to add item. Please try again.");
     } finally {
       setIsAdding(false);
     }
@@ -102,6 +105,12 @@ export const BuyingListView: React.FC<BuyingListViewProps> = ({ items, userId })
             <span>Add</span>
           </button>
         </form>
+        {error && (
+            <div className="mt-3 flex items-center text-red-500 text-sm">
+                <AlertCircle className="w-4 h-4 mr-2" />
+                {error}
+            </div>
+        )}
       </div>
 
       {/* Lists */}

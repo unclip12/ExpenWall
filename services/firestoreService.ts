@@ -58,13 +58,16 @@ export const subscribeToBuyingList = (userId: string, onUpdate: (data: BuyingIte
         ...doc.data()
       })) as BuyingItem[];
       
-      // Sort: Unbought first, then by creation time
+      // Sort: Unbought first, then by creation time (Newest first)
       items.sort((a, b) => {
         if (a.isBought === b.isBought) {
-          // If both bought or both unbought, sort by created time (if available) or name
-          return 0; 
+          // Handle null createdAt (pending local write) -> treat as now (Infinity for sorting desc)
+          // Timestamps from Firestore have .toMillis(), or might be null if serverTimestamp hasn't resolved locally
+          const timeA = a.createdAt && typeof a.createdAt.toMillis === 'function' ? a.createdAt.toMillis() : Date.now();
+          const timeB = b.createdAt && typeof b.createdAt.toMillis === 'function' ? b.createdAt.toMillis() : Date.now();
+          return timeB - timeA;
         }
-        return a.isBought ? 1 : -1; // Unbought comes first
+        return a.isBought ? 1 : -1; // Unbought (false) comes before Bought (true)
       });
 
       onUpdate(items);
