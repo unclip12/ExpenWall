@@ -1,5 +1,5 @@
 import React, { useState, useRef, ChangeEvent } from 'react';
-import { Camera, Upload, Check, Loader2, X, AlertCircle, Settings, ArrowDownCircle, ArrowUpCircle, Wallet as WalletIcon, Sparkles } from 'lucide-react';
+import { Camera, Upload, Check, Loader2, X, AlertCircle, Settings, ArrowDownCircle, ArrowUpCircle, Wallet as WalletIcon, Sparkles, ExternalLink, HelpCircle } from 'lucide-react';
 import { Category, Transaction, ReceiptData, Wallet } from '../types';
 import { CATEGORIES, CURRENCIES, DEFAULT_CURRENCY } from '../constants';
 import { geminiService, GEMINI_MODEL } from '../services/geminiService';
@@ -42,26 +42,73 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit, onCa
     if (scanError) setScanError(null);
   };
 
-  const parseErrorMessage = (errorMsg: string): string => {
-    try {
-      // If it looks like JSON, try to parse it
-      if (errorMsg.includes('{')) {
-        const jsonStart = errorMsg.indexOf('{');
-        const jsonStr = errorMsg.substring(jsonStart);
-        const parsed = JSON.parse(jsonStr);
-        
-        // Google API errors usually follow this structure
-        if (parsed.error && parsed.error.message) {
-          return parsed.error.message;
-        }
-        if (parsed.message) {
-          return parsed.message;
-        }
-      }
-      return errorMsg;
-    } catch (e) {
-      return errorMsg;
+  const renderErrorGuide = (errorMsg: string) => {
+    const isQuotaError = errorMsg.includes('429') || errorMsg.toLowerCase().includes('quota') || errorMsg.includes('RESOURCE_EXHAUSTED');
+    const isKeyError = errorMsg.includes('403') || errorMsg.toLowerCase().includes('api key') || errorMsg.includes('PERMISSION_DENIED');
+    const isNotFoundError = errorMsg.includes('404') || errorMsg.includes('NOT_FOUND');
+
+    let title = "Scanning Error";
+    let description = errorMsg;
+    let actionLink = "https://ai.google.dev/gemini-api/docs";
+    let actionText = "Gemini Docs";
+
+    if (isQuotaError) {
+      title = "Quota Exceeded";
+      description = "You have reached the free tier limits for the Gemini API.";
+      actionLink = "https://aistudio.google.com/app/plan_information";
+      actionText = "Check Usage & Billing";
+    } else if (isKeyError) {
+      title = "Invalid API Key";
+      description = "The API Key in settings is incorrect or has expired.";
+      actionLink = "https://aistudio.google.com/app/apikey";
+      actionText = "Get New API Key";
+    } else if (isNotFoundError) {
+      title = "Model Not Available";
+      description = `The model '${GEMINI_MODEL}' is not available in your region or account type.`;
+      actionLink = "https://ai.google.dev/gemini-api/docs/models/gemini";
+      actionText = "Check Model Availability";
     }
+
+    // Try to parse JSON for a cleaner message if possible, only for the detail view
+    let technicalDetails = errorMsg;
+    try {
+        if (errorMsg.includes('{')) {
+            const parsed = JSON.parse(errorMsg.substring(errorMsg.indexOf('{')));
+            technicalDetails = parsed.error?.message || parsed.message || errorMsg;
+        }
+    } catch {}
+
+    return (
+      <div className="flex flex-col items-center space-y-3 w-full bg-red-50 p-4 rounded-xl border border-red-100 shadow-sm text-left">
+         <div className="flex items-start w-full gap-3">
+            <div className="p-2 bg-white rounded-full shadow-sm text-red-500">
+               <AlertCircle className="w-5 h-5" />
+            </div>
+            <div className="flex-1">
+               <h4 className="text-sm font-bold text-red-800">{title}</h4>
+               <p className="text-xs text-red-600 mt-1 mb-2">{description}</p>
+               <a 
+                 href={actionLink} 
+                 target="_blank" 
+                 rel="noopener noreferrer"
+                 className="inline-flex items-center text-xs font-bold text-white bg-red-600 hover:bg-red-700 px-3 py-1.5 rounded-lg transition-colors"
+               >
+                 {actionText}
+                 <ExternalLink className="w-3 h-3 ml-1" />
+               </a>
+            </div>
+         </div>
+         
+         <details className="w-full">
+            <summary className="text-[10px] text-red-400 cursor-pointer hover:text-red-600 flex items-center gap-1">
+               <HelpCircle className="w-3 h-3" /> Show Technical Details
+            </summary>
+            <div className="mt-2 p-2 bg-white/50 rounded border border-red-100 text-[10px] font-mono text-red-800 break-words max-h-24 overflow-y-auto">
+               {technicalDetails}
+            </div>
+         </details>
+      </div>
+    );
   };
 
   const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
@@ -111,7 +158,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit, onCa
           }));
         } catch (err: any) {
             console.error("Receipt scanning error:", err);
-            setScanError(err.message || "Failed to extract data. Please enter details manually.");
+            setScanError(err.message || "Failed to extract data.");
         } finally {
           setIsScanning(false);
           if (fileInputRef.current) fileInputRef.current.value = '';
@@ -174,7 +221,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit, onCa
         {/* File Upload */}
         <div className="bg-indigo-50/50 border-2 border-dashed border-indigo-200/60 rounded-2xl p-6 text-center transition-all hover:bg-indigo-50 hover:border-indigo-300 relative">
           
-          <div className="absolute top-2 right-2 flex items-center space-x-1 bg-white/80 backdrop-blur px-2 py-1 rounded text-[10px] text-indigo-500 font-medium border border-indigo-100">
+          <div className="absolute top-2 right-2 flex items-center space-x-1 bg-white/80 backdrop-blur px-2 py-1 rounded text-[10px] text-indigo-500 font-medium border border-indigo-100 shadow-sm">
              <Sparkles className="w-3 h-3" />
              <span>{GEMINI_MODEL}</span>
           </div>
@@ -225,19 +272,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit, onCa
                   </div>
                   <p className="text-xs text-indigo-400">Supports JPG, PNG, WEBP. AI will auto-fill the form.</p>
                   
-                  {scanError && (
-                    <div className="flex flex-col items-center space-y-2 max-w-md mx-auto w-full">
-                        <div className="flex items-start justify-start space-x-3 text-red-600 bg-red-50 p-3 rounded-xl border border-red-100 w-full shadow-sm text-left">
-                            <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-                            <div className="flex-1 min-w-0">
-                                <p className="text-sm font-semibold mb-1">Scanning Failed</p>
-                                <div className="text-xs break-words font-mono bg-white/50 p-2 rounded border border-red-100/50 max-h-32 overflow-y-auto">
-                                  {parseErrorMessage(scanError)}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                  )}
+                  {scanError && renderErrorGuide(scanError)}
                 </div>
               )}
             </>

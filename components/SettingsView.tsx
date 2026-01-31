@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { CheckCircle, AlertCircle, Globe, ChevronDown, Check, Search, Key, ExternalLink, Loader2, Wallet, Plus, Trash2, CreditCard, Banknote, Smartphone, Cpu } from 'lucide-react';
+import { CheckCircle, AlertCircle, Globe, ChevronDown, Check, Search, Key, ExternalLink, Loader2, Wallet, Plus, Trash2, CreditCard, Banknote, Smartphone, Cpu, ShieldCheck } from 'lucide-react';
 import { CURRENCIES, DEFAULT_CURRENCY } from '../constants';
 import { saveUserApiKey, addWalletToDb, deleteWalletFromDb, subscribeToWallets } from '../services/firestoreService';
 import { Wallet as WalletType } from '../types';
@@ -307,13 +307,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ currentApiKey = '', 
         </div>
 
         <div className="max-w-2xl space-y-4">
-          <div className="bg-indigo-50/50 border border-indigo-100 p-4 rounded-xl flex items-start gap-3">
-             <Cpu className="w-5 h-5 text-indigo-600 mt-0.5 flex-shrink-0" />
-             <div>
-                <p className="text-sm font-bold text-indigo-900">Current Model: {GEMINI_MODEL}</p>
-                <p className="text-xs text-indigo-700 mt-1">
-                  The API Key you paste below is used directly to authenticate with Google Gemini for scanning receipts and analyzing transactions. 
-                  It is not used for Firebase or any other service.
+          <div className="bg-indigo-50/50 border border-indigo-100 p-4 rounded-xl space-y-3">
+             <div className="flex items-center gap-2">
+                <Cpu className="w-5 h-5 text-indigo-600" />
+                <span className="text-sm font-bold text-indigo-900">Current Model: {GEMINI_MODEL}</span>
+             </div>
+             <div className="flex items-start gap-2 text-xs text-indigo-700 bg-indigo-100/50 p-2 rounded-lg">
+                <ShieldCheck className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                <p>
+                  The API Key you paste below is used <b>only</b> to authenticate with Google Gemini for scanning receipts and analyzing transactions. 
+                  It is <b>not</b> used for Firebase or any other service.
                 </p>
              </div>
           </div>
