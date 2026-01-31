@@ -1,6 +1,6 @@
 import React, { useState, useRef, ChangeEvent } from 'react';
-import { Camera, Upload, Check, Loader2, X, AlertCircle, Settings, ArrowDownCircle, ArrowUpCircle } from 'lucide-react';
-import { Category, Transaction, ReceiptData } from '../types';
+import { Camera, Upload, Check, Loader2, X, AlertCircle, Settings, ArrowDownCircle, ArrowUpCircle, Wallet as WalletIcon } from 'lucide-react';
+import { Category, Transaction, ReceiptData, Wallet } from '../types';
 import { CATEGORIES, CURRENCIES, DEFAULT_CURRENCY } from '../constants';
 import { geminiService } from '../services/geminiService';
 
@@ -9,9 +9,10 @@ interface TransactionFormProps {
   onCancel: () => void;
   apiKey?: string;
   onOpenSettings?: () => void;
+  wallets?: Wallet[];
 }
 
-export const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit, onCancel, apiKey, onOpenSettings }) => {
+export const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit, onCancel, apiKey, onOpenSettings, wallets = [] }) => {
   // Initialize form with preferred currency
   const [formData, setFormData] = useState<Omit<Transaction, 'id'>>({
     merchant: '',
@@ -19,16 +20,16 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit, onCa
     amount: 0,
     currency: localStorage.getItem('expenwall_currency') || DEFAULT_CURRENCY,
     category: Category.OTHER,
-    type: 'expense', // Default to expense
+    type: 'expense', 
     notes: '',
     items: [],
-    receiptUrl: ''
+    receiptUrl: '',
+    walletId: wallets.length > 0 ? wallets[0].id : ''
   });
 
   const [isScanning, setIsScanning] = useState(false);
   const [scanError, setScanError] = useState<string | null>(null);
   
-  // Two separate refs for different input behaviors
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
@@ -38,7 +39,6 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit, onCa
       ...prev,
       [name]: name === 'amount' ? parseFloat(value) : value
     }));
-    // Clear error if user starts typing manually
     if (scanError) setScanError(null);
   };
 
@@ -55,11 +55,9 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit, onCa
     setScanError(null);
 
     try {
-      // Convert to base64
       const reader = new FileReader();
       reader.onloadend = async () => {
         const base64String = reader.result as string;
-        // Remove data URL prefix (e.g., "data:image/jpeg;base64,")
         const base64Data = base64String.split(',')[1];
         const mimeType = file.type;
 
@@ -68,7 +66,6 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit, onCa
           
           let detectedCurrency = localStorage.getItem('expenwall_currency') || DEFAULT_CURRENCY;
           
-          // Only override default currency if the receipt explicitly looks like another supported currency
           if (receiptData.currency) {
              const cleanCurrency = receiptData.currency.toUpperCase();
              const match = CURRENCIES.find(c => cleanCurrency.includes(c.code) || cleanCurrency.includes(c.symbol));
@@ -87,15 +84,14 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit, onCa
               ? receiptData.category as Category 
               : Category.OTHER),
             items: receiptData.items || [],
-            type: 'expense', // Receipts are usually expenses
-            receiptUrl: base64String // Kept in state for preview, but removed on submit
+            type: 'expense',
+            receiptUrl: base64String 
           }));
         } catch (err: any) {
             console.error("Receipt scanning error:", err);
             setScanError(err.message || "Failed to extract data. Please enter details manually.");
         } finally {
           setIsScanning(false);
-          // Reset input value so same file can be selected again if needed
           if (fileInputRef.current) fileInputRef.current.value = '';
           if (cameraInputRef.current) cameraInputRef.current.value = '';
         }
@@ -117,25 +113,25 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit, onCa
   const selectedCurrencySymbol = CURRENCIES.find(c => c.code === formData.currency)?.symbol || '$';
 
   return (
-    <div className="max-w-2xl mx-auto bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden">
-      <div className="p-6 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
+    <div className="max-w-2xl mx-auto bg-white/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 overflow-hidden animate-in zoom-in-95 duration-300">
+      <div className="p-6 bg-white/50 border-b border-white/20 flex justify-between items-center">
         <div>
           <h2 className="text-xl font-bold text-slate-800">Add Transaction</h2>
-          <p className="text-sm text-slate-500">Fill in details or upload a receipt</p>
+          <p className="text-sm text-slate-500">Log expense or income</p>
         </div>
-        <button onClick={onCancel} className="text-slate-400 hover:text-slate-600 transition-colors">
-          <X className="w-6 h-6" />
+        <button onClick={onCancel} className="p-2 rounded-full hover:bg-slate-200/50 transition-colors">
+          <X className="w-6 h-6 text-slate-500" />
         </button>
       </div>
 
       <div className="p-6 space-y-6">
         {/* Type Toggle */}
-        <div className="flex p-1 bg-slate-100 rounded-xl">
+        <div className="flex p-1 bg-slate-100/80 rounded-2xl backdrop-blur-sm">
            <button
              type="button"
              onClick={() => setFormData(prev => ({ ...prev, type: 'expense' }))}
-             className={`flex-1 flex items-center justify-center space-x-2 py-2 rounded-lg text-sm font-semibold transition-all ${
-               formData.type === 'expense' ? 'bg-white text-red-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+             className={`flex-1 flex items-center justify-center space-x-2 py-3 rounded-xl text-sm font-bold transition-all ${
+               formData.type === 'expense' ? 'bg-white text-red-600 shadow-lg' : 'text-slate-500 hover:text-slate-700'
              }`}
            >
              <ArrowUpCircle className="w-4 h-4" />
@@ -144,8 +140,8 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit, onCa
            <button
              type="button"
              onClick={() => setFormData(prev => ({ ...prev, type: 'income', category: Category.INCOME }))}
-             className={`flex-1 flex items-center justify-center space-x-2 py-2 rounded-lg text-sm font-semibold transition-all ${
-               formData.type === 'income' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+             className={`flex-1 flex items-center justify-center space-x-2 py-3 rounded-xl text-sm font-bold transition-all ${
+               formData.type === 'income' ? 'bg-white text-emerald-600 shadow-lg' : 'text-slate-500 hover:text-slate-700'
              }`}
            >
              <ArrowDownCircle className="w-4 h-4" />
@@ -153,8 +149,8 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit, onCa
            </button>
         </div>
 
-        {/* File Upload Section (Only show for expenses typically, but allow for both) */}
-        <div className="bg-indigo-50 border-2 border-dashed border-indigo-200 rounded-xl p-6 text-center transition-all hover:bg-indigo-100/50">
+        {/* File Upload */}
+        <div className="bg-indigo-50/50 border-2 border-dashed border-indigo-200/60 rounded-2xl p-6 text-center transition-all hover:bg-indigo-50 hover:border-indigo-300">
           
           {!apiKey ? (
              <div className="flex flex-col items-center justify-center space-y-3">
@@ -186,7 +182,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit, onCa
                     <button 
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
-                      className="flex items-center space-x-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
+                      className="flex items-center space-x-2 px-4 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-200"
                     >
                       <Upload className="w-4 h-4" />
                       <span>Upload Image</span>
@@ -194,7 +190,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit, onCa
                     <button 
                       type="button"
                       onClick={() => cameraInputRef.current?.click()}
-                      className="flex items-center space-x-2 px-4 py-2 bg-white text-indigo-700 border border-indigo-200 rounded-lg hover:bg-indigo-50 transition-colors shadow-sm"
+                      className="flex items-center space-x-2 px-4 py-2 bg-white text-indigo-700 border border-indigo-200 rounded-xl hover:bg-white/80 transition-colors shadow-sm"
                     >
                       <Camera className="w-4 h-4" />
                       <span>Camera</span>
@@ -227,7 +223,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit, onCa
                 required
                 value={formData.merchant}
                 onChange={handleInputChange}
-                className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all bg-white/50 backdrop-blur-sm"
                 placeholder="e.g. Starbucks or Salary"
               />
             </div>
@@ -240,7 +236,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit, onCa
                     name="currency"
                     value={formData.currency}
                     onChange={handleInputChange}
-                    className="w-full px-2 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none bg-slate-50 text-sm font-medium"
+                    className="w-full px-2 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none bg-slate-50 text-sm font-medium"
                   >
                     {CURRENCIES.map(c => (
                       <option key={c.code} value={c.code}>{c.flag} {c.code}</option>
@@ -248,7 +244,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit, onCa
                   </select>
                 </div>
                 <div className="relative flex-1">
-                  <span className="absolute left-3 top-2.5 text-slate-400 font-medium">{selectedCurrencySymbol}</span>
+                  <span className="absolute left-3 top-3.5 text-slate-400 font-medium">{selectedCurrencySymbol}</span>
                   <input
                     type="number"
                     name="amount"
@@ -256,7 +252,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit, onCa
                     required
                     value={formData.amount}
                     onChange={handleInputChange}
-                    className={`w-full pl-8 pr-4 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:border-transparent outline-none transition-all ${
+                    className={`w-full pl-8 pr-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:border-transparent outline-none transition-all bg-white/50 backdrop-blur-sm ${
                         formData.type === 'income' ? 'text-emerald-600 font-semibold' : 'text-slate-800'
                     }`}
                     placeholder="0.00"
@@ -273,7 +269,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit, onCa
                 required
                 value={formData.date}
                 onChange={handleInputChange}
-                className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all bg-white/50 backdrop-blur-sm"
               />
             </div>
 
@@ -283,12 +279,36 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit, onCa
                 name="category"
                 value={formData.category}
                 onChange={handleInputChange}
-                className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all bg-white"
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all bg-white/50 backdrop-blur-sm"
               >
                 {CATEGORIES.map(cat => (
                   <option key={cat} value={cat}>{cat}</option>
                 ))}
               </select>
+            </div>
+
+            <div className="space-y-2 md:col-span-2">
+                <label className="text-sm font-semibold text-slate-700">
+                    {formData.type === 'income' ? 'Destination Wallet' : 'Source Wallet'}
+                </label>
+                <div className="relative">
+                    <WalletIcon className="absolute left-4 top-3.5 w-5 h-5 text-slate-400" />
+                    <select
+                        name="walletId"
+                        value={formData.walletId}
+                        onChange={handleInputChange}
+                        className="w-full pl-12 pr-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all bg-white/50 backdrop-blur-sm appearance-none"
+                    >
+                        <option value="">Select a Wallet</option>
+                        {wallets.map(w => (
+                            <option key={w.id} value={w.id}>{w.name} ({w.type})</option>
+                        ))}
+                    </select>
+                    <ChevronDownIcon className="absolute right-4 top-3.5 w-5 h-5 text-slate-400 pointer-events-none" />
+                </div>
+                {wallets.length === 0 && (
+                     <p className="text-xs text-red-500">No wallets found. Please add one in Settings.</p>
+                )}
             </div>
           </div>
 
@@ -299,13 +319,13 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit, onCa
               value={formData.notes || ''}
               onChange={handleInputChange}
               rows={3}
-              className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all resize-none"
-              placeholder="Add any additional details here..."
+              className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all resize-none bg-white/50 backdrop-blur-sm"
+              placeholder="Add details..."
             />
           </div>
 
           {formData.items && formData.items.length > 0 && formData.type === 'expense' && (
-            <div className="bg-slate-50 rounded-lg p-4 border border-slate-100">
+            <div className="bg-slate-50/80 rounded-xl p-4 border border-slate-100 backdrop-blur-sm">
               <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Extracted Items</h4>
               <div className="space-y-2">
                 {formData.items.map((item, idx) => (
@@ -322,20 +342,20 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit, onCa
             <button
               type="button"
               onClick={onCancel}
-              className="px-6 py-2.5 rounded-lg text-slate-600 font-medium hover:bg-slate-100 transition-colors"
+              className="px-6 py-3 rounded-xl text-slate-600 font-medium hover:bg-slate-100 transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className={`px-6 py-2.5 rounded-lg text-white font-medium shadow-md transition-all flex items-center ${
+              className={`px-8 py-3 rounded-xl text-white font-medium shadow-lg transition-all flex items-center transform hover:scale-[1.02] active:scale-[0.98] ${
                   formData.type === 'income' 
                   ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200' 
                   : 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-200'
               }`}
             >
-              <Check className="w-4 h-4 mr-2" />
-              Save {formData.type === 'income' ? 'Income' : 'Expense'}
+              <Check className="w-5 h-5 mr-2" />
+              Save
             </button>
           </div>
         </form>
@@ -343,3 +363,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit, onCa
     </div>
   );
 };
+
+const ChevronDownIcon = (props: any) => (
+    <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+);

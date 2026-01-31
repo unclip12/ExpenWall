@@ -12,6 +12,15 @@ export enum Category {
 
 export type TransactionType = 'expense' | 'income';
 
+export interface Wallet {
+  id: string;
+  userId?: string;
+  name: string; // e.g. "HDFC Bank", "Cash", "Amex"
+  type: 'bank' | 'cash' | 'credit' | 'digital';
+  color?: string;
+  createdAt?: any;
+}
+
 export interface TransactionItem {
   name: string;
   price: number;
@@ -26,6 +35,7 @@ export interface Transaction {
   currency: string; // 'USD' | 'INR'
   category: Category;
   type: TransactionType;
+  walletId?: string; // Link to Wallet
   items?: TransactionItem[];
   notes?: string;
   receiptUrl?: string; // Base64 of receipt if uploaded

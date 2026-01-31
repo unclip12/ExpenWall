@@ -11,8 +11,8 @@ import { SettingsView } from './components/SettingsView';
 import { AnalyzerView } from './components/AnalyzerView';
 import { RulesView } from './components/RulesView';
 import { NAV_ITEMS } from './constants';
-import { Transaction, BuyingItem, AnalyzerState, Category, DraftTransaction, MerchantRule } from './types';
-import { subscribeToTransactions, addTransactionToDb, getUserProfile, subscribeToBuyingList, subscribeToRules } from './services/firestoreService';
+import { Transaction, BuyingItem, AnalyzerState, Category, DraftTransaction, MerchantRule, Wallet as WalletType } from './types';
+import { subscribeToTransactions, addTransactionToDb, getUserProfile, subscribeToBuyingList, subscribeToRules, subscribeToWallets } from './services/firestoreService';
 import { geminiService } from './services/geminiService';
 
 const App: React.FC = () => {
@@ -23,18 +23,16 @@ const App: React.FC = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [buyingItems, setBuyingItems] = useState<BuyingItem[]>([]);
   const [merchantRules, setMerchantRules] = useState<MerchantRule[]>([]);
+  const [wallets, setWallets] = useState<WalletType[]>([]);
   
   const [showAddModal, setShowAddModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [user, setUser] = useState<firebase.User | null>(null);
-  
-  // State for User's Personal API Key
   const [userApiKey, setUserApiKey] = useState<string>('');
 
-  // --- ANALYZER STATE (Lifted Up) ---
   const [analyzerState, setAnalyzerState] = useState<AnalyzerState>({
-    messages: [{ role: 'bot', text: 'Hello! Upload a bank statement image. I will learn from your past transactions to categorize them correctly.' }],
+    messages: [{ role: 'bot', text: 'Hello! Upload a bank statement image. I will learn from your past transactions.' }],
     drafts: [],
     isProcessing: false
   });
@@ -48,7 +46,7 @@ const App: React.FC = () => {
         </div>
         <h1 className="text-2xl font-bold text-slate-800 mb-2">Configuration Missing</h1>
         <p className="text-slate-600 max-w-md mb-6">
-          The app could not connect to Firebase. This usually happens due to missing API keys or a configuration issue.
+          The app could not connect to Firebase.
         </p>
       </div>
     );
@@ -67,34 +65,22 @@ const App: React.FC = () => {
         setTransactions([]);
         setBuyingItems([]);
         setMerchantRules([]);
+        setWallets([]);
         setUserApiKey('');
       }
     });
     return () => unsubscribe();
   }, []);
 
-  // Fetch Data (Transactions, Buying List, API Key, Rules) once User is authenticated
+  // Fetch Data
   useEffect(() => {
-    if (!user) {
-        return;
-    }
+    if (!user) return;
 
-    // 1. Subscribe to transactions
-    const unsubscribeTransactions = subscribeToTransactions(user.uid, (data) => {
-      setTransactions(data);
-    });
+    const unsubscribeTransactions = subscribeToTransactions(user.uid, setTransactions);
+    const unsubscribeBuyingList = subscribeToBuyingList(user.uid, setBuyingItems);
+    const unsubscribeRules = subscribeToRules(user.uid, setMerchantRules);
+    const unsubscribeWallets = subscribeToWallets(user.uid, setWallets);
 
-    // 2. Subscribe to Buying List
-    const unsubscribeBuyingList = subscribeToBuyingList(user.uid, (data) => {
-      setBuyingItems(data);
-    });
-
-    // 3. Subscribe to Rules
-    const unsubscribeRules = subscribeToRules(user.uid, (data) => {
-        setMerchantRules(data);
-    });
-
-    // 4. Fetch User Profile (API Key)
     const fetchProfile = async () => {
       const profile = await getUserProfile(user.uid);
       if (profile && profile.apiKey) {
@@ -108,28 +94,19 @@ const App: React.FC = () => {
       unsubscribeTransactions();
       unsubscribeBuyingList();
       unsubscribeRules();
+      unsubscribeWallets();
     };
   }, [user]);
 
-  // --- ANALYZER LOGIC ---
-  
-  // Helper to create a "Knowledge Base" from history and explicit rules
+  // Analyzer & Transaction Logic Handlers (Same as before)
   const getHistoryContext = () => {
-      // 1. Explicit Rules take priority
-      let context = "Explicit User Rules (Use these mappings strictly):\n";
+      let context = "Explicit User Rules:\n";
       merchantRules.forEach(r => {
           context += `- When you see "${r.originalName}", output name "${r.renamedTo}" and category "${r.forcedCategory || 'Auto'}".\n`;
       });
-      
-      // 2. Implicit History
       const mapping: Record<string, string> = {};
-      transactions.forEach(t => {
-          if (t.merchant && t.category) {
-            mapping[t.merchant] = t.category;
-          }
-      });
-      context += "\nPast Transactions History:\n" + JSON.stringify(mapping);
-      
+      transactions.forEach(t => { if (t.merchant && t.category) mapping[t.merchant] = t.category; });
+      context += "\nPast History:\n" + JSON.stringify(mapping);
       return context;
   }
 
@@ -138,24 +115,14 @@ const App: React.FC = () => {
           setAnalyzerState(prev => ({ ...prev, messages: [...prev.messages, { role: 'bot', text: "Please configure your API Key in Settings first." }] }));
           return;
       }
-
-      setAnalyzerState(prev => ({ 
-          ...prev, 
-          isProcessing: true, 
-          messages: [...prev.messages, { role: 'user', text: "Analyzing uploaded image..." }] 
-      }));
-
+      setAnalyzerState(prev => ({ ...prev, isProcessing: true, messages: [...prev.messages, { role: 'user', text: "Analyzing..." }] }));
       try {
         const reader = new FileReader();
         reader.onloadend = async () => {
-            const base64String = reader.result as string;
-            const base64Data = base64String.split(',')[1];
-            
+            const base64Data = (reader.result as string).split(',')[1];
             try {
-                // Pass history context for learning!
                 const historyContext = getHistoryContext();
                 const result = await geminiService.analyzeBankStatement(base64Data, file.type, userApiKey, historyContext);
-                
                 if (result.transactions && result.transactions.length > 0) {
                     const newDrafts: DraftTransaction[] = result.transactions.map((t, idx) => ({
                         id: `temp-${Date.now()}-${idx}`,
@@ -165,15 +132,9 @@ const App: React.FC = () => {
                         type: (t.type === 'income') ? 'income' : 'expense',
                         category: t.category || Category.OTHER
                     }));
-
-                    setAnalyzerState(prev => ({ 
-                        ...prev, 
-                        isProcessing: false,
-                        drafts: [...prev.drafts, ...newDrafts],
-                        messages: [...prev.messages, { role: 'bot', text: `Done! I found ${newDrafts.length} transactions.` }]
-                    }));
+                    setAnalyzerState(prev => ({ ...prev, isProcessing: false, drafts: [...prev.drafts, ...newDrafts], messages: [...prev.messages, { role: 'bot', text: `Found ${newDrafts.length} transactions.` }] }));
                 } else {
-                    setAnalyzerState(prev => ({ ...prev, isProcessing: false, messages: [...prev.messages, { role: 'bot', text: "I couldn't find clear transactions." }] }));
+                    setAnalyzerState(prev => ({ ...prev, isProcessing: false, messages: [...prev.messages, { role: 'bot', text: "No transactions found." }] }));
                 }
             } catch (err: any) {
                 setAnalyzerState(prev => ({ ...prev, isProcessing: false, messages: [...prev.messages, { role: 'bot', text: `Error: ${err.message}` }] }));
@@ -186,34 +147,22 @@ const App: React.FC = () => {
   };
 
   const handleAnalyzerMessage = async (text: string) => {
-      setAnalyzerState(prev => ({ 
-          ...prev, 
-          messages: [...prev.messages, { role: 'user', text: text }] 
-      }));
-
-      // Check if we are in "Refinement Mode" (Drafts exist)
+      setAnalyzerState(prev => ({ ...prev, messages: [...prev.messages, { role: 'user', text: text }] }));
       if (analyzerState.drafts.length > 0) {
            if (!userApiKey) {
-             setAnalyzerState(prev => ({ ...prev, messages: [...prev.messages, { role: 'bot', text: "I need an API Key to perform AI corrections." }] }));
+             setAnalyzerState(prev => ({ ...prev, messages: [...prev.messages, { role: 'bot', text: "Need API Key." }] }));
              return;
            }
-
            setAnalyzerState(prev => ({ ...prev, isProcessing: true }));
            try {
                const refinedDrafts = await geminiService.refineBankStatement(analyzerState.drafts, text, userApiKey);
-               setAnalyzerState(prev => ({
-                   ...prev,
-                   isProcessing: false,
-                   drafts: refinedDrafts, 
-                   messages: [...prev.messages, { role: 'bot', text: "I've updated the drafts based on your feedback." }]
-               }));
+               setAnalyzerState(prev => ({ ...prev, isProcessing: false, drafts: refinedDrafts, messages: [...prev.messages, { role: 'bot', text: "Updated drafts." }] }));
            } catch (err: any) {
-               setAnalyzerState(prev => ({ ...prev, isProcessing: false, messages: [...prev.messages, { role: 'bot', text: `Correction failed: ${err.message}` }] }));
+               setAnalyzerState(prev => ({ ...prev, isProcessing: false, messages: [...prev.messages, { role: 'bot', text: `Error: ${err.message}` }] }));
            }
            return;
       }
-
-      // Normal Mode (JSON Parsing or Chat)
+      // Paste JSON Logic
       setAnalyzerState(prev => ({ ...prev, isProcessing: true }));
       try {
           const cleanText = text.replace(/```json|```/g, '').trim();
@@ -221,8 +170,7 @@ const App: React.FC = () => {
               let parsed = JSON.parse(cleanText);
               if (!Array.isArray(parsed) && parsed.transactions) parsed = parsed.transactions;
               if (!Array.isArray(parsed)) parsed = [parsed];
-
-              const newDrafts: DraftTransaction[] = parsed.map((t: any, idx: number) => ({
+              const newDrafts = parsed.map((t: any, idx: number) => ({
                 id: `manual-${Date.now()}-${idx}`,
                 merchant: t.merchant || "Unknown",
                 date: t.date || new Date().toISOString().split('T')[0],
@@ -230,34 +178,24 @@ const App: React.FC = () => {
                 type: (t.type === 'income') ? 'income' : 'expense',
                 category: t.category || Category.OTHER
               }));
-
-              setAnalyzerState(prev => ({
-                  ...prev,
-                  isProcessing: false,
-                  drafts: [...prev.drafts, ...newDrafts],
-                  messages: [...prev.messages, { role: 'bot', text: `Parsed ${newDrafts.length} transactions from text.` }]
-              }));
+              setAnalyzerState(prev => ({ ...prev, isProcessing: false, drafts: [...prev.drafts, ...newDrafts], messages: [...prev.messages, { role: 'bot', text: `Parsed ${newDrafts.length} items.` }] }));
           } else {
-              setAnalyzerState(prev => ({ ...prev, isProcessing: false, messages: [...prev.messages, { role: 'bot', text: "I can't answer general questions yet. Please upload an image or paste JSON." }] }));
+              setAnalyzerState(prev => ({ ...prev, isProcessing: false, messages: [...prev.messages, { role: 'bot', text: "I need an image or JSON." }] }));
           }
       } catch (err) {
-          setAnalyzerState(prev => ({ ...prev, isProcessing: false, messages: [...prev.messages, { role: 'bot', text: "That doesn't look like valid JSON." }] }));
+          setAnalyzerState(prev => ({ ...prev, isProcessing: false, messages: [...prev.messages, { role: 'bot', text: "Invalid JSON." }] }));
       }
   };
 
   const handleAddTransaction = async (newTx: Omit<Transaction, 'id'>) => {
-    if (!user) {
-      alert("You must be signed in to save transactions.");
-      return;
-    }
+    if (!user) return;
     setIsSaving(true);
     try {
       await addTransactionToDb(newTx, user.uid);
       setShowAddModal(false);
       setActiveTab('dashboard');
     } catch (error) {
-      console.error("Failed to save transaction", error);
-      alert("Failed to save transaction. Please try again.");
+      alert("Failed to save.");
     } finally {
       setIsSaving(false);
     }
@@ -268,122 +206,44 @@ const App: React.FC = () => {
       setIsSaving(true);
       try {
           await Promise.all(newTxs.map(tx => addTransactionToDb(tx, user.uid)));
-          setAnalyzerState(prev => ({ ...prev, drafts: [], messages: [...prev.messages, { role: 'bot', text: `Saved ${newTxs.length} transactions to your dashboard!` }] }));
+          setAnalyzerState(prev => ({ ...prev, drafts: [], messages: [...prev.messages, { role: 'bot', text: `Saved ${newTxs.length} items!` }] }));
           setActiveTab('dashboard');
       } catch (error) {
-          console.error("Bulk save error", error);
-          alert("Some transactions failed to save.");
+          alert("Some failed.");
       } finally {
           setIsSaving(false);
       }
   }
 
-  const handleLogout = () => {
-    if (auth) auth.signOut();
-  };
+  const handleLogout = () => { if (auth) auth.signOut(); };
 
-  if (loading) {
-    return (
-        <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50">
-            <Loader2 className="w-12 h-12 text-indigo-600 animate-spin mb-4" />
-        </div>
-    );
-  }
-
-  if (!user) {
-      return <LoginView />;
-  }
+  if (loading) return <div className="flex justify-center items-center min-h-screen"><Loader2 className="w-10 h-10 animate-spin text-indigo-600"/></div>;
+  if (!user) return <LoginView />;
 
   const renderContent = () => {
     if (showAddModal) {
-      if (isSaving) {
-         return (
-             <div className="flex flex-col items-center justify-center h-64">
-                 <Loader2 className="w-10 h-10 text-indigo-600 animate-spin mb-4" />
-                 <p className="text-slate-600 font-medium">Saving transaction...</p>
-             </div>
-         )
-      }
-      return (
-        <TransactionForm 
-          onSubmit={handleAddTransaction} 
-          onCancel={() => setShowAddModal(false)}
-          apiKey={userApiKey}
-          onOpenSettings={() => {
-            setShowAddModal(false);
-            setActiveTab('settings');
-          }}
-        />
-      );
+      if (isSaving) return <div className="flex flex-col items-center justify-center h-64"><Loader2 className="w-10 h-10 text-indigo-600 animate-spin mb-4"/><p className="text-slate-600">Saving...</p></div>;
+      return <TransactionForm onSubmit={handleAddTransaction} onCancel={() => setShowAddModal(false)} apiKey={userApiKey} onOpenSettings={() => { setShowAddModal(false); setActiveTab('settings'); }} wallets={wallets} />;
     }
-
-    if (isSaving) {
-        return (
-             <div className="flex flex-col items-center justify-center h-full">
-                 <Loader2 className="w-10 h-10 text-indigo-600 animate-spin mb-4" />
-                 <p className="text-slate-600 font-medium">Processing...</p>
-             </div>
-        )
-    }
+    if (isSaving) return <div className="flex justify-center h-full items-center"><Loader2 className="animate-spin text-indigo-600"/></div>;
 
     switch (activeTab) {
-      case 'dashboard':
-        return <Dashboard transactions={transactions} rules={merchantRules} />;
-      case 'transactions':
-        return <TransactionList transactions={transactions} rules={merchantRules} userId={user.uid} />;
-      case 'analyzer':
-        return (
-            <AnalyzerView 
-                apiKey={userApiKey} 
-                state={analyzerState}
-                onStateChange={(newState) => setAnalyzerState(prev => ({ ...prev, ...newState }))}
-                onSaveTransactions={handleBulkAddTransactions}
-                onAnalyzeImage={handleAnalyzeImage}
-                onSendMessage={handleAnalyzerMessage}
-            />
-        );
-      case 'buying-list':
-        return <BuyingListView items={buyingItems} userId={user.uid} />;
-      case 'rules':
-        return <RulesView rules={merchantRules} />;
-      case 'settings':
-        return (
-          <SettingsView 
-            currentApiKey={userApiKey} 
-            onApiKeyUpdate={(key) => setUserApiKey(key)}
-            userId={user.uid}
-          />
-        );
-      default:
-        return <Dashboard transactions={transactions} rules={merchantRules} />;
+      case 'dashboard': return <Dashboard transactions={transactions} rules={merchantRules} />;
+      case 'transactions': return <TransactionList transactions={transactions} rules={merchantRules} userId={user.uid} wallets={wallets} />;
+      case 'analyzer': return <AnalyzerView apiKey={userApiKey} state={analyzerState} onStateChange={(newState) => setAnalyzerState(prev => ({ ...prev, ...newState }))} onSaveTransactions={handleBulkAddTransactions} onAnalyzeImage={handleAnalyzeImage} onSendMessage={handleAnalyzerMessage} />;
+      case 'buying-list': return <BuyingListView items={buyingItems} userId={user.uid} />;
+      case 'rules': return <RulesView rules={merchantRules} />;
+      case 'settings': return <SettingsView currentApiKey={userApiKey} onApiKeyUpdate={(key) => setUserApiKey(key)} userId={user.uid} />;
+      default: return <Dashboard transactions={transactions} rules={merchantRules} />;
     }
   };
 
-  const getPageTitle = () => {
-    if (showAddModal) return 'New Transaction';
-    if (activeTab === 'buying-list') return 'Buying List';
-    if (activeTab === 'dashboard') return 'Overview';
-    if (activeTab === 'analyzer') return 'Statement Analyzer';
-    if (activeTab === 'rules') return 'Smart Rules';
-    if (activeTab === 'settings') return 'Settings';
-    return 'Transactions';
-  }
-
-  const getPageSubtitle = () => {
-    if (showAddModal) return 'Enter details manually or scan a receipt.';
-    if (activeTab === 'buying-list') return 'Track items you plan to purchase.';
-    if (activeTab === 'settings') return 'Configure your preferences.';
-    if (activeTab === 'rules') return 'Manage automatic renaming and categorization.';
-    if (activeTab === 'analyzer') return 'Scan bank statements, or chat to refine results.';
-    return 'Welcome back! Here is your financial summary.';
-  }
-
   return (
-    <div className="flex min-h-screen bg-slate-50 text-slate-900 font-sans">
-      {/* Sidebar - Desktop */}
-      <aside className="hidden md:flex flex-col w-64 bg-white border-r border-slate-200 fixed h-full z-20">
-        <div className="p-6 flex items-center space-x-3 border-b border-slate-100">
-          <div className="bg-indigo-600 p-2 rounded-lg">
+    <div className="flex min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50/30 to-slate-100 text-slate-900 font-sans">
+      {/* Sidebar - Desktop (Glass) */}
+      <aside className="hidden md:flex flex-col w-64 bg-white/60 backdrop-blur-xl border-r border-white/20 fixed h-full z-20 shadow-xl">
+        <div className="p-6 flex items-center space-x-3 border-b border-white/20">
+          <div className="bg-gradient-to-tr from-indigo-600 to-violet-600 p-2 rounded-xl shadow-lg">
             <Wallet className="w-6 h-6 text-white" />
           </div>
           <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-violet-600">
@@ -393,18 +253,15 @@ const App: React.FC = () => {
 
         <nav className="flex-1 p-4 space-y-2">
           {NAV_ITEMS.map((item) => {
-             if (item.id === 'add') return null; // Handle add button separately
+             if (item.id === 'add') return null;
              return (
               <button
                 key={item.id}
-                onClick={() => {
-                  setActiveTab(item.id);
-                  setShowAddModal(false);
-                }}
-                className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 ${
+                onClick={() => { setActiveTab(item.id); setShowAddModal(false); }}
+                className={`w-full flex items-center space-x-3 px-4 py-3 rounded-2xl transition-all duration-300 ${
                   activeTab === item.id && !showAddModal
-                    ? 'bg-indigo-50 text-indigo-700 font-semibold shadow-sm'
-                    : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
+                    ? 'bg-white shadow-lg text-indigo-700 font-bold border border-white/40'
+                    : 'text-slate-500 hover:bg-white/40 hover:text-slate-700'
                 }`}
               >
                 <item.icon className={`w-5 h-5 ${activeTab === item.id && !showAddModal ? 'text-indigo-600' : 'text-slate-400'}`} />
@@ -414,10 +271,10 @@ const App: React.FC = () => {
           })}
         </nav>
 
-        <div className="p-4 border-t border-slate-100 space-y-4">
+        <div className="p-4 border-t border-white/20 space-y-4">
            <button
              onClick={() => setShowAddModal(true)}
-             className="w-full bg-slate-900 text-white p-3 rounded-xl flex items-center justify-center space-x-2 hover:bg-slate-800 transition-colors shadow-lg shadow-slate-200"
+             className="w-full bg-slate-900 text-white p-3.5 rounded-2xl flex items-center justify-center space-x-2 hover:bg-slate-800 transition-all shadow-xl shadow-slate-300 hover:shadow-2xl hover:scale-[1.02]"
            >
              <PlusCircle className="w-5 h-5" />
              <span className="font-medium">Add Transaction</span>
@@ -433,8 +290,8 @@ const App: React.FC = () => {
         </div>
       </aside>
 
-      {/* Mobile Header */}
-      <div className="md:hidden fixed w-full bg-white z-30 border-b border-slate-200 px-4 py-3 flex justify-between items-center">
+      {/* Mobile Header (Glass) */}
+      <div className="md:hidden fixed w-full bg-white/80 backdrop-blur-xl z-30 border-b border-white/20 px-4 py-3 flex justify-between items-center shadow-sm">
         <div className="flex items-center space-x-2">
           <div className="bg-indigo-600 p-1.5 rounded-lg">
             <Wallet className="w-5 h-5 text-white" />
@@ -446,21 +303,17 @@ const App: React.FC = () => {
         </button>
       </div>
 
-      {/* Mobile Menu Overlay */}
+      {/* Mobile Menu */}
       {isMobileMenuOpen && (
-        <div className="fixed inset-0 bg-white z-20 pt-20 px-6 md:hidden flex flex-col">
+        <div className="fixed inset-0 bg-white/95 backdrop-blur-xl z-20 pt-20 px-6 md:hidden flex flex-col animate-in slide-in-from-top-10">
           <nav className="space-y-4 flex-1">
              {NAV_ITEMS.map((item) => {
                if (item.id === 'add') return null;
                return (
                 <button
                   key={item.id}
-                  onClick={() => {
-                    setActiveTab(item.id);
-                    setShowAddModal(false);
-                    setIsMobileMenuOpen(false);
-                  }}
-                  className={`w-full flex items-center space-x-4 p-4 rounded-xl text-lg ${
+                  onClick={() => { setActiveTab(item.id); setShowAddModal(false); setIsMobileMenuOpen(false); }}
+                  className={`w-full flex items-center space-x-4 p-4 rounded-2xl text-lg ${
                     activeTab === item.id && !showAddModal ? 'bg-indigo-50 text-indigo-700 font-bold' : 'text-slate-600'
                   }`}
                 >
@@ -470,11 +323,8 @@ const App: React.FC = () => {
               )
              })}
               <button
-                onClick={() => {
-                  setShowAddModal(true);
-                  setIsMobileMenuOpen(false);
-                }}
-                className="w-full flex items-center space-x-4 p-4 rounded-xl text-lg bg-indigo-600 text-white font-bold mt-4"
+                onClick={() => { setShowAddModal(true); setIsMobileMenuOpen(false); }}
+                className="w-full flex items-center space-x-4 p-4 rounded-2xl text-lg bg-indigo-600 text-white font-bold mt-4 shadow-lg"
               >
                 <PlusCircle className="w-6 h-6" />
                 <span>Add Transaction</span>
@@ -483,11 +333,8 @@ const App: React.FC = () => {
           
           <div className="mb-8">
             <button 
-                onClick={() => {
-                    handleLogout();
-                    setIsMobileMenuOpen(false);
-                }}
-                className="w-full flex items-center justify-center space-x-2 p-4 text-red-500 bg-red-50 rounded-xl font-medium"
+                onClick={() => { handleLogout(); setIsMobileMenuOpen(false); }}
+                className="w-full flex items-center justify-center space-x-2 p-4 text-red-500 bg-red-50 rounded-2xl font-medium"
             >
                 <LogOut className="w-5 h-5" />
                 <span>Sign Out</span>
@@ -499,19 +346,6 @@ const App: React.FC = () => {
       {/* Main Content Area */}
       <main className="flex-1 md:ml-64 p-6 mt-14 md:mt-0 transition-all duration-300 ease-in-out">
         <div className="max-w-7xl mx-auto">
-          <header className="mb-8 hidden md:block">
-            <div className="flex justify-between items-start">
-                <div>
-                    <h1 className="text-2xl font-bold text-slate-800">
-                      {getPageTitle()}
-                    </h1>
-                    <p className="text-slate-500 text-sm">
-                      {getPageSubtitle()}
-                    </p>
-                </div>
-            </div>
-          </header>
-          
           {renderContent()}
         </div>
       </main>

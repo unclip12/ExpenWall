@@ -1,11 +1,12 @@
 import { db } from "../firebase";
-import { Transaction, UserProfile, BuyingItem, MerchantRule } from "../types";
+import { Transaction, UserProfile, BuyingItem, MerchantRule, Wallet } from "../types";
 import firebase from "firebase/compat/app";
 
 const COLLECTION_NAME = "transactions";
 const BUYING_COLLECTION = "buying_list";
 const USERS_COLLECTION = "users";
 const RULES_COLLECTION = "merchant_rules";
+const WALLETS_COLLECTION = "wallets";
 
 // --- Transactions ---
 
@@ -56,6 +57,40 @@ export const updateTransactionInDb = async (transactionId: string, updates: Part
         throw error;
     }
 }
+
+// --- Wallets ---
+
+export const subscribeToWallets = (userId: string, onUpdate: (data: Wallet[]) => void) => {
+    if (!db) return () => {};
+    return db.collection(WALLETS_COLLECTION)
+        .where("userId", "==", userId)
+        .onSnapshot(snapshot => {
+            const wallets = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            })) as Wallet[];
+            onUpdate(wallets);
+        }, err => console.error("Wallet fetch error", err));
+};
+
+export const addWalletToDb = async (wallet: Omit<Wallet, "id">, userId: string) => {
+    if (!db) return;
+    try {
+        await db.collection(WALLETS_COLLECTION).add({
+            ...wallet,
+            userId,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+    } catch (e) {
+        console.error("Add wallet error", e);
+        throw e;
+    }
+};
+
+export const deleteWalletFromDb = async (walletId: string) => {
+    if (!db) return;
+    await db.collection(WALLETS_COLLECTION).doc(walletId).delete();
+};
 
 // --- Buying List ---
 
