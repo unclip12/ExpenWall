@@ -53,21 +53,37 @@ export const subscribeToBuyingList = (userId: string, onUpdate: (data: BuyingIte
   return db.collection(BUYING_COLLECTION)
     .where("userId", "==", userId)
     .onSnapshot((snapshot) => {
-      const items = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as BuyingItem[];
+      const items = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+            id: doc.id,
+            ...data,
+            // Ensure essential fields exist to prevent UI crashes
+            isBought: data.isBought ?? false,
+            estimatedPrice: data.estimatedPrice ?? 0,
+            name: data.name ?? 'Unknown Item'
+        };
+      }) as BuyingItem[];
       
-      // Sort: Unbought first, then by creation time (Newest first)
+      // Robust Sort: Unbought first, then by creation time (Newest first)
       items.sort((a, b) => {
-        if (a.isBought === b.isBought) {
-          // Handle null createdAt (pending local write) -> treat as now (Infinity for sorting desc)
-          // Timestamps from Firestore have .toMillis(), or might be null if serverTimestamp hasn't resolved locally
-          const timeA = a.createdAt && typeof a.createdAt.toMillis === 'function' ? a.createdAt.toMillis() : Date.now();
-          const timeB = b.createdAt && typeof b.createdAt.toMillis === 'function' ? b.createdAt.toMillis() : Date.now();
-          return timeB - timeA;
+        // 1. Sort by Status
+        if (a.isBought !== b.isBought) {
+          return a.isBought ? 1 : -1; // Unbought (false) comes first
         }
-        return a.isBought ? 1 : -1; // Unbought (false) comes before Bought (true)
+        
+        // 2. Sort by Date (Newest first)
+        const getMillis = (t: any) => {
+          if (!t) return Date.now() + 1000; // Treat null/undefined (pending write) as VERY new
+          if (typeof t.toMillis === 'function') return t.toMillis();
+          if (typeof t.seconds === 'number') return t.seconds * 1000;
+          return 0; // Fallback for bad data
+        };
+
+        const timeA = getMillis(a.createdAt);
+        const timeB = getMillis(b.createdAt);
+        
+        return timeB - timeA;
       });
 
       onUpdate(items);
@@ -79,21 +95,34 @@ export const subscribeToBuyingList = (userId: string, onUpdate: (data: BuyingIte
 export const addBuyingItem = async (item: Omit<BuyingItem, "id" | "userId">, userId: string) => {
   if (!db) throw new Error("Firestore not initialized");
   
-  await db.collection(BUYING_COLLECTION).add({
-    ...item,
-    userId,
-    createdAt: firebase.firestore.FieldValue.serverTimestamp()
-  });
+  try {
+    await db.collection(BUYING_COLLECTION).add({
+      ...item,
+      userId,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  } catch (error) {
+    console.error("Error adding buying item:", error);
+    throw error;
+  }
 };
 
 export const updateBuyingItemStatus = async (itemId: string, isBought: boolean) => {
   if (!db) return;
-  await db.collection(BUYING_COLLECTION).doc(itemId).update({ isBought });
+  try {
+      await db.collection(BUYING_COLLECTION).doc(itemId).update({ isBought });
+  } catch (error) {
+      console.error("Error updating buying item status:", error);
+  }
 };
 
 export const deleteBuyingItem = async (itemId: string) => {
   if (!db) return;
-  await db.collection(BUYING_COLLECTION).doc(itemId).delete();
+  try {
+    await db.collection(BUYING_COLLECTION).doc(itemId).delete();
+  } catch (error) {
+    console.error("Error deleting buying item:", error);
+  }
 };
 
 // --- User Profile ---

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Trash2, CheckCircle, Circle, ShoppingCart, AlertCircle } from 'lucide-react';
+import { Plus, Trash2, CheckCircle, Circle, ShoppingCart, AlertCircle, Loader2 } from 'lucide-react';
 import { BuyingItem } from '../types';
 import { CURRENCIES, DEFAULT_CURRENCY } from '../constants';
 import { addBuyingItem, updateBuyingItemStatus, deleteBuyingItem } from '../services/firestoreService';
@@ -24,18 +24,21 @@ export const BuyingListView: React.FC<BuyingListViewProps> = ({ items, userId })
 
     setIsAdding(true);
     setError(null);
+    
     try {
       await addBuyingItem({
-        name: newItemName,
+        name: newItemName.trim(),
         estimatedPrice: newItemPrice ? parseFloat(newItemPrice) : 0,
         currency: currencyCode,
         isBought: false
       }, userId);
+      
+      // Success: Clear form
       setNewItemName('');
       setNewItemPrice('');
-    } catch (err) {
-      console.error("Failed to add item", err);
-      setError("Failed to add item. Please try again.");
+    } catch (err: any) {
+      console.error("Failed to add item:", err);
+      setError(err.message || "Failed to add item. Please try again.");
     } finally {
       setIsAdding(false);
     }
@@ -83,7 +86,8 @@ export const BuyingListView: React.FC<BuyingListViewProps> = ({ items, userId })
             placeholder="What do you need to buy?"
             value={newItemName}
             onChange={(e) => setNewItemName(e.target.value)}
-            className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+            disabled={isAdding}
+            className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none disabled:opacity-60"
           />
           <div className="relative w-full md:w-40">
             <span className="absolute left-3 top-3.5 text-slate-400 text-sm">{currencySymbol}</span>
@@ -92,21 +96,28 @@ export const BuyingListView: React.FC<BuyingListViewProps> = ({ items, userId })
               placeholder="Price"
               value={newItemPrice}
               onChange={(e) => setNewItemPrice(e.target.value)}
-              className="w-full pl-8 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+              disabled={isAdding}
+              className="w-full pl-8 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none disabled:opacity-60"
               step="0.01"
             />
           </div>
           <button
             type="submit"
             disabled={isAdding || !newItemName.trim()}
-            className="px-6 py-3 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors flex items-center justify-center space-x-2"
+            className="px-6 py-3 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors flex items-center justify-center space-x-2 min-w-[100px]"
           >
-            <Plus className="w-5 h-5" />
-            <span>Add</span>
+            {isAdding ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              <>
+                <Plus className="w-5 h-5" />
+                <span>Add</span>
+              </>
+            )}
           </button>
         </form>
         {error && (
-            <div className="mt-3 flex items-center text-red-500 text-sm">
+            <div className="mt-3 flex items-center text-red-500 text-sm bg-red-50 p-2 rounded-lg">
                 <AlertCircle className="w-4 h-4 mr-2" />
                 {error}
             </div>
@@ -115,7 +126,7 @@ export const BuyingListView: React.FC<BuyingListViewProps> = ({ items, userId })
 
       {/* Lists */}
       <div className="space-y-4">
-        {items.length === 0 && (
+        {items.length === 0 && !isAdding && (
           <div className="text-center py-12 text-slate-400 bg-white rounded-2xl border border-slate-100 border-dashed">
             <ShoppingCart className="w-12 h-12 mx-auto mb-3 opacity-20" />
             <p>Your buying list is empty.</p>
