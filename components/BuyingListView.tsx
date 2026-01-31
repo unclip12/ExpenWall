@@ -14,6 +14,9 @@ export const BuyingListView: React.FC<BuyingListViewProps> = ({ items, userId })
   const [newItemPrice, setNewItemPrice] = useState('');
   const [isAdding, setIsAdding] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // Track individual item loading states for responsiveness
+  const [togglingItems, setTogglingItems] = useState<Set<string>>(new Set());
 
   const currencyCode = localStorage.getItem('expenwall_currency') || DEFAULT_CURRENCY;
   const currencySymbol = CURRENCIES.find(c => c.code === currencyCode)?.symbol || '$';
@@ -45,10 +48,17 @@ export const BuyingListView: React.FC<BuyingListViewProps> = ({ items, userId })
   };
 
   const handleToggleStatus = async (item: BuyingItem) => {
+    setTogglingItems(prev => new Set(prev).add(item.id));
     try {
       await updateBuyingItemStatus(item.id, !item.isBought);
     } catch (error) {
       console.error("Failed to update status", error);
+    } finally {
+      setTogglingItems(prev => {
+          const next = new Set(prev);
+          next.delete(item.id);
+          return next;
+      });
     }
   };
 
@@ -143,8 +153,16 @@ export const BuyingListView: React.FC<BuyingListViewProps> = ({ items, userId })
               {unboughtItems.map((item) => (
                 <div key={item.id} className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors group">
                   <div className="flex items-center space-x-4 flex-1">
-                    <button onClick={() => handleToggleStatus(item)} className="text-slate-300 hover:text-emerald-500 transition-colors">
-                      <Circle className="w-6 h-6" />
+                    <button 
+                      onClick={() => handleToggleStatus(item)} 
+                      disabled={togglingItems.has(item.id)}
+                      className="text-slate-300 hover:text-emerald-500 transition-colors disabled:opacity-50"
+                    >
+                      {togglingItems.has(item.id) ? (
+                          <Loader2 className="w-6 h-6 animate-spin text-indigo-500" />
+                      ) : (
+                          <Circle className="w-6 h-6" />
+                      )}
                     </button>
                     <div className="flex-1">
                       <p className="font-medium text-slate-800">{item.name}</p>
@@ -175,8 +193,16 @@ export const BuyingListView: React.FC<BuyingListViewProps> = ({ items, userId })
               {boughtItems.map((item) => (
                 <div key={item.id} className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors group">
                   <div className="flex items-center space-x-4 flex-1">
-                    <button onClick={() => handleToggleStatus(item)} className="text-emerald-500 hover:text-slate-400 transition-colors">
-                      <CheckCircle className="w-6 h-6" />
+                    <button 
+                      onClick={() => handleToggleStatus(item)} 
+                      disabled={togglingItems.has(item.id)}
+                      className="text-emerald-500 hover:text-slate-400 transition-colors disabled:opacity-50"
+                    >
+                      {togglingItems.has(item.id) ? (
+                          <Loader2 className="w-6 h-6 animate-spin text-indigo-500" />
+                      ) : (
+                          <CheckCircle className="w-6 h-6" />
+                      )}
                     </button>
                     <div className="flex-1">
                       <p className="font-medium text-slate-400 line-through decoration-slate-300">{item.name}</p>

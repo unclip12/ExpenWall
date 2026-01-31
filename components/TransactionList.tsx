@@ -22,6 +22,7 @@ export const TransactionList: React.FC<TransactionListProps> = ({ transactions, 
   const [originalMerchant, setOriginalMerchant] = useState('');
   const [showRulePrompt, setShowRulePrompt] = useState(false);
   const [isSavingRule, setIsSavingRule] = useState(false);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
 
   const preferredCurrency = localStorage.getItem('expenwall_currency') || DEFAULT_CURRENCY;
   const currencySymbol = CURRENCIES.find(c => c.code === preferredCurrency)?.symbol || '₹';
@@ -70,13 +71,20 @@ export const TransactionList: React.FC<TransactionListProps> = ({ transactions, 
   const handleSave = async () => {
       if (!editingId || !editForm.merchant) return;
       
-      await updateTransactionInDb(editingId, editForm);
+      setIsSavingEdit(true);
+      try {
+        await updateTransactionInDb(editingId, editForm);
 
-      const nameChanged = editForm.merchant !== originalMerchant;
-      if (nameChanged) {
-           setShowRulePrompt(true);
-      } else {
-          setEditingId(null);
+        const nameChanged = editForm.merchant !== originalMerchant;
+        if (nameChanged) {
+             setShowRulePrompt(true);
+        } else {
+            setEditingId(null);
+        }
+      } catch (error) {
+        console.error("Failed to update transaction", error);
+      } finally {
+        setIsSavingEdit(false);
       }
   };
 
@@ -216,7 +224,13 @@ export const TransactionList: React.FC<TransactionListProps> = ({ transactions, 
                                     </select>
                                 </div>
                                 <div className="flex flex-col justify-center gap-2">
-                                    <button onClick={handleSave} className="p-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 shadow-sm"><Check className="w-4 h-4"/></button>
+                                    <button 
+                                      onClick={handleSave} 
+                                      disabled={isSavingEdit}
+                                      className="p-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 shadow-sm flex items-center justify-center disabled:opacity-50"
+                                    >
+                                      {isSavingEdit ? <Loader2 className="w-4 h-4 animate-spin"/> : <Check className="w-4 h-4"/>}
+                                    </button>
                                     <button onClick={() => setEditingId(null)} className="p-2 bg-slate-200 text-slate-600 rounded-lg hover:bg-slate-300"><X className="w-4 h-4"/></button>
                                 </div>
                             </div>
