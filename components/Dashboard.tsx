@@ -1,40 +1,52 @@
 import React from 'react';
-import { Transaction, Category } from '../types';
+import { Transaction, Category, MerchantRule } from '../types';
 import { PieChart, Pie, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { ArrowUpRight, ArrowDownLeft, TrendingUp, Wallet } from 'lucide-react';
 import { CURRENCIES, DEFAULT_CURRENCY } from '../constants';
 
 interface DashboardProps {
   transactions: Transaction[];
+  rules: MerchantRule[];
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ transactions }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ transactions, rules }) => {
   const currency = localStorage.getItem('expenwall_currency') || DEFAULT_CURRENCY;
-  const currentSymbol = CURRENCIES.find(c => c.code === currency)?.symbol || '$';
+  const currentSymbol = CURRENCIES.find(c => c.code === currency)?.symbol || '₹';
 
-  // Filter transactions by currency and sort by date
-  const filteredTransactions = transactions.filter(t => (t.currency || DEFAULT_CURRENCY) === currency);
-  
-  // Calculate Totals
-  const totalSpent = filteredTransactions
-    .filter(t => t.type === 'expense' || t.type === undefined) // Backwards compatibility: undefined is expense
+  // Apply Rules to Transactions (Category overriding)
+  const processedTransactions = transactions.map(t => {
+      const rule = rules.find(r => r.originalName.toLowerCase() === t.merchant.toLowerCase());
+      if (rule) {
+          return {
+              ...t,
+              displayCategory: rule.forcedCategory || t.category,
+              type: t.type // Keep type intact
+          };
+      }
+      return { ...t, displayCategory: t.category };
+  });
+
+  // Calculate Totals - Using raw Amount but displaying in Preferred Currency as requested
+  // "1000 USD -> 1000 INR" logic
+  const totalSpent = processedTransactions
+    .filter(t => t.type === 'expense' || t.type === undefined) 
     .reduce((acc, curr) => acc + curr.amount, 0);
 
-  const totalIncome = filteredTransactions
+  const totalIncome = processedTransactions
     .filter(t => t.type === 'income')
     .reduce((acc, curr) => acc + curr.amount, 0);
 
   const netBalance = totalIncome - totalSpent;
 
-  const recentTransactions = [...filteredTransactions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 5);
+  const recentTransactions = [...processedTransactions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 5);
   
-  // Prepare data for category chart (Only Expenses)
+  // Prepare data for category chart based on PROCESSED categories
   const categoryData = Object.values(Category)
-    .filter(cat => cat !== Category.INCOME) // Don't show Income in expense pie chart
+    .filter(cat => cat !== Category.INCOME)
     .map(cat => ({
       name: cat,
-      value: filteredTransactions
-        .filter(t => (t.type === 'expense' || !t.type) && t.category === cat)
+      value: processedTransactions
+        .filter(t => (t.type === 'expense' || !t.type) && t.displayCategory === cat)
         .reduce((acc, t) => acc + t.amount, 0)
     }))
     .filter(item => item.value > 0);
@@ -134,12 +146,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions }) => {
                       t.type === 'income' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-600'
                   }`}>
                     {t.type === 'income' ? '💰' : 
-                     t.category === Category.FOOD ? '🍔' : 
-                     t.category === Category.TRANSPORT ? '🚗' : 
-                     t.category === Category.SHOPPING ? '🛍️' : '📄'}
+                     t.displayCategory === Category.FOOD ? '🍔' : 
+                     t.displayCategory === Category.TRANSPORT ? '🚗' : 
+                     t.displayCategory === Category.SHOPPING ? '🛍️' : '📄'}
                   </div>
                   <div>
-                    <p className="font-semibold text-slate-800 text-sm truncate max-w-[120px]">{t.merchant}</p>
+                    <p className="font-semibold text-slate-800 text-sm truncate max-w-[120px]">
+                        {rules.find(r => r.originalName.toLowerCase() === t.merchant.toLowerCase())?.renamedTo || t.merchant}
+                    </p>
                     <p className="text-xs text-slate-500">{t.date}</p>
                   </div>
                 </div>
@@ -147,7 +161,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions }) => {
                   <p className={`font-bold text-sm ${t.type === 'income' ? 'text-emerald-600' : 'text-slate-800'}`}>
                     {t.type === 'income' ? '+' : '-'}{currentSymbol}{t.amount.toFixed(2)}
                   </p>
-                  <p className="text-xs text-slate-500">{t.category}</p>
+                  <p className="text-xs text-slate-500">{t.displayCategory}</p>
                 </div>
               </div>
             )) : (

@@ -9,9 +9,10 @@ import { BuyingListView } from './components/BuyingListView';
 import { LoginView } from './components/LoginView';
 import { SettingsView } from './components/SettingsView';
 import { AnalyzerView } from './components/AnalyzerView';
+import { RulesView } from './components/RulesView';
 import { NAV_ITEMS } from './constants';
-import { Transaction, BuyingItem, AnalyzerState, Category, DraftTransaction } from './types';
-import { subscribeToTransactions, addTransactionToDb, getUserProfile, subscribeToBuyingList } from './services/firestoreService';
+import { Transaction, BuyingItem, AnalyzerState, Category, DraftTransaction, MerchantRule } from './types';
+import { subscribeToTransactions, addTransactionToDb, getUserProfile, subscribeToBuyingList, subscribeToRules } from './services/firestoreService';
 import { geminiService } from './services/geminiService';
 
 const App: React.FC = () => {
@@ -21,6 +22,7 @@ const App: React.FC = () => {
   // Data State
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [buyingItems, setBuyingItems] = useState<BuyingItem[]>([]);
+  const [merchantRules, setMerchantRules] = useState<MerchantRule[]>([]);
   
   const [showAddModal, setShowAddModal] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -64,13 +66,14 @@ const App: React.FC = () => {
         setLoading(false);
         setTransactions([]);
         setBuyingItems([]);
+        setMerchantRules([]);
         setUserApiKey('');
       }
     });
     return () => unsubscribe();
   }, []);
 
-  // Fetch Data (Transactions, Buying List, API Key) once User is authenticated
+  // Fetch Data (Transactions, Buying List, API Key, Rules) once User is authenticated
   useEffect(() => {
     if (!user) {
         return;
@@ -86,7 +89,12 @@ const App: React.FC = () => {
       setBuyingItems(data);
     });
 
-    // 3. Fetch User Profile (API Key)
+    // 3. Subscribe to Rules
+    const unsubscribeRules = subscribeToRules(user.uid, (data) => {
+        setMerchantRules(data);
+    });
+
+    // 4. Fetch User Profile (API Key)
     const fetchProfile = async () => {
       const profile = await getUserProfile(user.uid);
       if (profile && profile.apiKey) {
@@ -99,22 +107,30 @@ const App: React.FC = () => {
     return () => {
       unsubscribeTransactions();
       unsubscribeBuyingList();
+      unsubscribeRules();
     };
   }, [user]);
 
   // --- ANALYZER LOGIC ---
   
-  // Helper to create a "Knowledge Base" from history
+  // Helper to create a "Knowledge Base" from history and explicit rules
   const getHistoryContext = () => {
+      // 1. Explicit Rules take priority
+      let context = "Explicit User Rules (Use these mappings strictly):\n";
+      merchantRules.forEach(r => {
+          context += `- When you see "${r.originalName}", output name "${r.renamedTo}" and category "${r.forcedCategory || 'Auto'}".\n`;
+      });
+      
+      // 2. Implicit History
       const mapping: Record<string, string> = {};
       transactions.forEach(t => {
-          // Store merchant -> category mapping
-          // If duplicate, later ones overwrite (basic learning)
           if (t.merchant && t.category) {
             mapping[t.merchant] = t.category;
           }
       });
-      return JSON.stringify(mapping);
+      context += "\nPast Transactions History:\n" + JSON.stringify(mapping);
+      
+      return context;
   }
 
   const handleAnalyzeImage = async (file: File) => {
@@ -154,7 +170,7 @@ const App: React.FC = () => {
                         ...prev, 
                         isProcessing: false,
                         drafts: [...prev.drafts, ...newDrafts],
-                        messages: [...prev.messages, { role: 'bot', text: `Done! I found ${newDrafts.length} transactions based on your history preferences.` }]
+                        messages: [...prev.messages, { role: 'bot', text: `Done! I found ${newDrafts.length} transactions.` }]
                     }));
                 } else {
                     setAnalyzerState(prev => ({ ...prev, isProcessing: false, messages: [...prev.messages, { role: 'bot', text: "I couldn't find clear transactions." }] }));
@@ -185,12 +201,10 @@ const App: React.FC = () => {
            setAnalyzerState(prev => ({ ...prev, isProcessing: true }));
            try {
                const refinedDrafts = await geminiService.refineBankStatement(analyzerState.drafts, text, userApiKey);
-               // Preserve IDs if possible, or mapping relies on AI returning consistent data
-               // Simplified: Just replace the list with what AI returns
                setAnalyzerState(prev => ({
                    ...prev,
                    isProcessing: false,
-                   drafts: refinedDrafts, // Replace with refined versions
+                   drafts: refinedDrafts, 
                    messages: [...prev.messages, { role: 'bot', text: "I've updated the drafts based on your feedback." }]
                }));
            } catch (err: any) {
@@ -254,7 +268,6 @@ const App: React.FC = () => {
       setIsSaving(true);
       try {
           await Promise.all(newTxs.map(tx => addTransactionToDb(tx, user.uid)));
-          // Clear drafts after saving
           setAnalyzerState(prev => ({ ...prev, drafts: [], messages: [...prev.messages, { role: 'bot', text: `Saved ${newTxs.length} transactions to your dashboard!` }] }));
           setActiveTab('dashboard');
       } catch (error) {
@@ -269,7 +282,6 @@ const App: React.FC = () => {
     if (auth) auth.signOut();
   };
 
-  // 1. Loading State
   if (loading) {
     return (
         <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50">
@@ -278,12 +290,10 @@ const App: React.FC = () => {
     );
   }
 
-  // 2. Unauthenticated State (Login View)
   if (!user) {
       return <LoginView />;
   }
 
-  // 3. Authenticated App Content
   const renderContent = () => {
     if (showAddModal) {
       if (isSaving) {
@@ -318,9 +328,9 @@ const App: React.FC = () => {
 
     switch (activeTab) {
       case 'dashboard':
-        return <Dashboard transactions={transactions} />;
+        return <Dashboard transactions={transactions} rules={merchantRules} />;
       case 'transactions':
-        return <TransactionList transactions={transactions} />;
+        return <TransactionList transactions={transactions} rules={merchantRules} userId={user.uid} />;
       case 'analyzer':
         return (
             <AnalyzerView 
@@ -334,6 +344,8 @@ const App: React.FC = () => {
         );
       case 'buying-list':
         return <BuyingListView items={buyingItems} userId={user.uid} />;
+      case 'rules':
+        return <RulesView rules={merchantRules} />;
       case 'settings':
         return (
           <SettingsView 
@@ -343,7 +355,7 @@ const App: React.FC = () => {
           />
         );
       default:
-        return <Dashboard transactions={transactions} />;
+        return <Dashboard transactions={transactions} rules={merchantRules} />;
     }
   };
 
@@ -352,6 +364,7 @@ const App: React.FC = () => {
     if (activeTab === 'buying-list') return 'Buying List';
     if (activeTab === 'dashboard') return 'Overview';
     if (activeTab === 'analyzer') return 'Statement Analyzer';
+    if (activeTab === 'rules') return 'Smart Rules';
     if (activeTab === 'settings') return 'Settings';
     return 'Transactions';
   }
@@ -360,6 +373,7 @@ const App: React.FC = () => {
     if (showAddModal) return 'Enter details manually or scan a receipt.';
     if (activeTab === 'buying-list') return 'Track items you plan to purchase.';
     if (activeTab === 'settings') return 'Configure your preferences.';
+    if (activeTab === 'rules') return 'Manage automatic renaming and categorization.';
     if (activeTab === 'analyzer') return 'Scan bank statements, or chat to refine results.';
     return 'Welcome back! Here is your financial summary.';
   }

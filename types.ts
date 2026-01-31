@@ -79,3 +79,12 @@ export interface AnalyzerState {
   drafts: DraftTransaction[];
   isProcessing: boolean;
 }
+
+export interface MerchantRule {
+  id: string;
+  userId?: string;
+  originalName: string; // e.g. "Lashmi M"
+  renamedTo: string;    // e.g. "Manasa"
+  forcedCategory?: Category; // e.g. "Transportation"
+  createdAt?: any;
+}

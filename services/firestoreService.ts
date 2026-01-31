@@ -1,10 +1,11 @@
 import { db } from "../firebase";
-import { Transaction, UserProfile, BuyingItem } from "../types";
+import { Transaction, UserProfile, BuyingItem, MerchantRule } from "../types";
 import firebase from "firebase/compat/app";
 
 const COLLECTION_NAME = "transactions";
 const BUYING_COLLECTION = "buying_list";
 const USERS_COLLECTION = "users";
+const RULES_COLLECTION = "merchant_rules";
 
 // --- Transactions ---
 
@@ -45,6 +46,16 @@ export const addTransactionToDb = async (transaction: Omit<Transaction, "id">, u
     throw error;
   }
 };
+
+export const updateTransactionInDb = async (transactionId: string, updates: Partial<Transaction>) => {
+    if (!db) return;
+    try {
+        await db.collection(COLLECTION_NAME).doc(transactionId).update(updates);
+    } catch (error) {
+        console.error("Error updating transaction:", error);
+        throw error;
+    }
+}
 
 // --- Buying List ---
 
@@ -155,4 +166,38 @@ export const getUserProfile = async (userId: string): Promise<UserProfile | null
     console.error("Error fetching user profile:", error);
     return null;
   }
+};
+
+// --- Merchant Rules (Smart Aliases) ---
+
+export const subscribeToRules = (userId: string, onUpdate: (rules: MerchantRule[]) => void) => {
+    if (!db) return () => {};
+    
+    return db.collection(RULES_COLLECTION)
+        .where("userId", "==", userId)
+        .onSnapshot((snapshot) => {
+            const rules = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            })) as MerchantRule[];
+            onUpdate(rules);
+        }, err => console.error("Rules fetch error:", err));
+};
+
+export const addMerchantRule = async (rule: Omit<MerchantRule, "id">) => {
+    if (!db) return;
+    try {
+        await db.collection(RULES_COLLECTION).add({
+            ...rule,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+    } catch (e) {
+        console.error("Failed to add rule", e);
+        throw e;
+    }
+};
+
+export const deleteMerchantRule = async (ruleId: string) => {
+    if(!db) return;
+    await db.collection(RULES_COLLECTION).doc(ruleId).delete();
 };

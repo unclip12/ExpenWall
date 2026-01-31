@@ -1,5 +1,5 @@
 import { Category } from './types';
-import { LayoutDashboard, PlusCircle, Receipt, Settings, ShoppingCart, Bot } from 'lucide-react';
+import { LayoutDashboard, PlusCircle, Receipt, Settings, ShoppingCart, Bot, Sparkles } from 'lucide-react';
 
 export const CATEGORIES = Object.values(Category);
 
@@ -9,12 +9,15 @@ export const NAV_ITEMS = [
   { id: 'add', label: 'Add New', icon: PlusCircle },
   { id: 'analyzer', label: 'Analyzer', icon: Bot },
   { id: 'buying-list', label: 'Buying List', icon: ShoppingCart },
+  { id: 'rules', label: 'Smart Rules', icon: Sparkles },
   { id: 'settings', label: 'Settings', icon: Settings },
 ];
 
-export const DEFAULT_CURRENCY = 'USD';
+export const DEFAULT_CURRENCY = 'INR';
 
 export const CURRENCIES = [
+  { code: 'INR', symbol: '₹', name: 'Indian Rupee', flag: '🇮🇳' },
+  { code: 'USD', symbol: '$', name: 'United States Dollar', flag: '🇺🇸' },
   { code: 'AED', symbol: 'dh', name: 'United Arab Emirates Dirham', flag: '🇦🇪' },
   { code: 'ARS', symbol: '$', name: 'Argentine Peso', flag: '🇦🇷' },
   { code: 'AUD', symbol: '$', name: 'Australian Dollar', flag: '🇦🇺' },
@@ -32,7 +35,6 @@ export const CURRENCIES = [
   { code: 'HKD', symbol: '$', name: 'Hong Kong Dollar', flag: '🇭🇰' },
   { code: 'IDR', symbol: 'Rp', name: 'Indonesian Rupiah', flag: '🇮🇩' },
   { code: 'ILS', symbol: '₪', name: 'Israeli New Shekel', flag: '🇮🇱' },
-  { code: 'INR', symbol: '₹', name: 'Indian Rupee', flag: '🇮🇳' },
   { code: 'JPY', symbol: '¥', name: 'Japanese Yen', flag: '🇯🇵' },
   { code: 'KRW', symbol: '₩', name: 'South Korean Won', flag: '🇰🇷' },
   { code: 'MXN', symbol: '$', name: 'Mexican Peso', flag: '🇲🇽' },
@@ -49,7 +51,6 @@ export const CURRENCIES = [
   { code: 'THB', symbol: '฿', name: 'Thai Baht', flag: '🇹🇭' },
   { code: 'TRY', symbol: '₺', name: 'Turkish Lira', flag: '🇹🇷' },
   { code: 'TWD', symbol: 'NT$', name: 'New Taiwan Dollar', flag: '🇹🇼' },
-  { code: 'USD', symbol: '$', name: 'United States Dollar', flag: '🇺🇸' },
   { code: 'VND', symbol: '₫', name: 'Vietnamese Đồng', flag: '🇻🇳' },
   { code: 'ZAR', symbol: 'R', name: 'South African Rand', flag: '🇿🇦' }
-].sort((a, b) => a.name.localeCompare(b.name));
+];
