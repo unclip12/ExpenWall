@@ -15,11 +15,12 @@ jobs:
           node-version: 20
           
       - name: Install Dependencies
-        run: npm install
-        
-      - - name: Build and Deploy
-        run: npm ci && npm run build
+        run: npm ci
+
+      - name: Build
+        run: npm run build
         env:
+          # Inject Secrets into the Build Environment
           VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
           VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
           VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
@@ -27,11 +28,12 @@ jobs:
           VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
           VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
           API_KEY: ${{ secrets.API_KEY }}
-          
+
       - name: Deploy to Firebase
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
-          repoToken: '${{ secrets.GITHUB_TOKEN }}'
-          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}'
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          # MAKE SURE THIS SECRET NAME MATCHES YOUR GITHUB SETTINGS
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           channelId: live
-          projectId: expenwall
+          projectId: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
