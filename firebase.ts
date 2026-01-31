@@ -3,7 +3,6 @@ import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword } f
 import { getFirestore } from "firebase/firestore";
 
 // Your web app's Firebase configuration
-// Accessing secrets via environment variables for security
 const firebaseConfig = {
   apiKey: (import.meta as any).env.VITE_FIREBASE_API_KEY,
   authDomain: (import.meta as any).env.VITE_FIREBASE_AUTH_DOMAIN,
@@ -13,10 +12,25 @@ const firebaseConfig = {
   appId: (import.meta as any).env.VITE_FIREBASE_APP_ID
 };
 
+// Simple validation to warn developer if keys are missing
+if (!firebaseConfig.apiKey) {
+  console.error("Expenwall Error: Firebase API keys are missing. Please check your .env file or Vercel/Netlify environment variables.");
+}
+
 // Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
+// We use a try-catch block or conditional initialization to prevent the entire app from crashing (White Screen of Death)
+// if the config is invalid, although Firebase SDK usually requires valid config to do anything useful.
+let app;
+let auth: any;
+let db: any;
+
+try {
+  app = initializeApp(firebaseConfig);
+  auth = getAuth(app);
+  db = getFirestore(app);
+} catch (error) {
+  console.error("Firebase Initialization Error:", error);
+}
 
 /**
  * Attempts to log in using a "Secret ID".
@@ -24,6 +38,8 @@ const db = getFirestore(app);
  * If the user doesn't exist, it automatically registers them.
  */
 export const loginWithSecretId = async (secretId: string) => {
+  if (!auth) throw new Error("Firebase auth is not initialized. Check your API keys.");
+
   // sanitize the ID to ensure valid email format
   const sanitizedId = secretId.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
   
