@@ -209,7 +209,7 @@ export const AnalyzerView: React.FC<AnalyzerViewProps> = ({
                   handleTextSubmit();
                 }
               }}
-              placeholder={state.drafts.length > 0 ? "Type to correct drafts (AI Mode)..." : "Paste JSON or chat..."}
+              placeholder={state.drafts.length > 0 ? "Type to correct drafts (AI Mode)..." : "Paste transaction JSON or chat..."}
               className={`w-full pl-4 pr-10 py-3 bg-slate-50 border rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none resize-none h-[50px] text-sm ${
                   state.drafts.length > 0 ? 'border-indigo-200 bg-indigo-50/30' : 'border-slate-200'
               }`}

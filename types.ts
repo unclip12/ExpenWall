@@ -12,11 +12,13 @@ export enum Category {
 
 export type TransactionType = 'expense' | 'income';
 
+export type WalletType = 'bank' | 'cash' | 'credit' | 'digital';
+
 export interface Wallet {
   id: string;
   userId?: string;
-  name: string; // e.g. "HDFC Bank", "Cash", "Amex"
-  type: 'bank' | 'cash' | 'credit' | 'digital';
+  name: string;
+  type: WalletType;
   color?: string;
   createdAt?: any;
 }
@@ -32,13 +34,12 @@ export interface Transaction {
   merchant: string;
   date: string; // ISO Date string YYYY-MM-DD
   amount: number;
-  currency: string; // 'USD' | 'INR'
+  currency: string;
   category: Category;
   type: TransactionType;
-  walletId?: string; // Link to Wallet
+  walletId?: string;
   items?: TransactionItem[];
   notes?: string;
-  receiptUrl?: string; // Base64 of receipt if uploaded
 }
 
 export interface BuyingItem {
@@ -80,21 +81,33 @@ export interface DraftTransaction {
   merchant: string;
   date: string;
   amount: number;
-  type: 'expense' | 'income';
+  type: TransactionType;
   category: string;
 }
 
 export interface AnalyzerState {
-  messages: { role: 'user' | 'bot'; text: string }[];
+  messages: AnalyzerMessage[];
   drafts: DraftTransaction[];
   isProcessing: boolean;
+}
+
+export interface AnalyzerMessage {
+  role: 'user' | 'bot';
+  text: string;
 }
 
 export interface MerchantRule {
   id: string;
   userId?: string;
-  originalName: string; // e.g. "Lashmi M"
-  renamedTo: string;    // e.g. "Manasa"
-  forcedCategory?: Category; // e.g. "Transportation"
+  originalName: string;
+  renamedTo: string;
+  forcedCategory?: Category;
   createdAt?: any;
+}
+
+// Processed types for display (after applying rules)
+export interface ProcessedTransaction extends Transaction {
+  displayMerchant: string;
+  displayCategory: Category;
+  isAliased: boolean;
 }

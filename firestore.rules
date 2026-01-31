@@ -2,25 +2,54 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Helper function to check if the user is authenticated and matches the requested userId
+    // Helper: check if user is authenticated and matches the userId field
     function isOwner(userId) {
       return request.auth != null && request.auth.uid == userId;
     }
 
+    // --- Transactions ---
     match /transactions/{transactionId} {
       allow read: if isOwner(resource.data.userId);
-      allow create: if isOwner(request.resource.data.userId);
-      allow update, delete: if isOwner(resource.data.userId);
+      allow create: if isOwner(request.resource.data.userId)
+                     && request.resource.data.keys().hasAll(['userId', 'merchant', 'amount', 'date', 'category', 'type', 'currency']);
+      allow update: if isOwner(resource.data.userId)
+                     && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['userId']);
+      allow delete: if isOwner(resource.data.userId);
     }
 
+    // --- Buying List ---
     match /buying_list/{itemId} {
       allow read: if isOwner(resource.data.userId);
-      allow create: if isOwner(request.resource.data.userId);
-      allow update, delete: if isOwner(resource.data.userId);
+      allow create: if isOwner(request.resource.data.userId)
+                     && request.resource.data.keys().hasAll(['userId', 'name', 'isBought']);
+      allow update: if isOwner(resource.data.userId)
+                     && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['userId']);
+      allow delete: if isOwner(resource.data.userId);
     }
     
+    // --- User Profile ---
     match /users/{userId} {
       allow read, write: if isOwner(userId);
+    }
+
+    // --- Merchant Rules ---
+    match /merchant_rules/{ruleId} {
+      allow read: if isOwner(resource.data.userId);
+      allow create: if isOwner(request.resource.data.userId)
+                     && request.resource.data.keys().hasAll(['userId', 'originalName', 'renamedTo']);
+      allow update: if isOwner(resource.data.userId)
+                     && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['userId']);
+      allow delete: if isOwner(resource.data.userId);
+    }
+
+    // --- Wallets ---
+    match /wallets/{walletId} {
+      allow read: if isOwner(resource.data.userId);
+      allow create: if isOwner(request.resource.data.userId)
+                     && request.resource.data.keys().hasAll(['userId', 'name', 'type']);
+      allow update: if isOwner(resource.data.userId)
+                     && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['userId']);
+      allow delete: if isOwner(resource.data.userId);
     }
   }
 }
