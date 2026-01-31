@@ -1,8 +1,9 @@
 import { db } from "../firebase";
-import { Transaction } from "../types";
+import { Transaction, UserProfile } from "../types";
 import firebase from "firebase/compat/app";
 
 const COLLECTION_NAME = "transactions";
+const USERS_COLLECTION = "users";
 
 /**
  * Subscribes to the transactions collection for a specific user.
@@ -50,5 +51,35 @@ export const addTransactionToDb = async (transaction: Omit<Transaction, "id">, u
   } catch (error) {
     console.error("Error adding transaction: ", error);
     throw error;
+  }
+};
+
+/**
+ * Saves the user's API Key to their profile document.
+ */
+export const saveUserApiKey = async (userId: string, apiKey: string) => {
+  if (!db) throw new Error("Firestore not initialized");
+  
+  await db.collection(USERS_COLLECTION).doc(userId).set({
+    apiKey,
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  }, { merge: true });
+};
+
+/**
+ * Retrieves the user's API Key.
+ */
+export const getUserProfile = async (userId: string): Promise<UserProfile | null> => {
+  if (!db) return null;
+  
+  try {
+    const doc = await db.collection(USERS_COLLECTION).doc(userId).get();
+    if (doc.exists) {
+      return doc.data() as UserProfile;
+    }
+    return null;
+  } catch (error) {
+    console.error("Error fetching user profile:", error);
+    return null;
   }
 };

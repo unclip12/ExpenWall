@@ -9,7 +9,7 @@ import { LoginView } from './components/LoginView';
 import { SettingsView } from './components/SettingsView';
 import { NAV_ITEMS } from './constants';
 import { Transaction } from './types';
-import { subscribeToTransactions, addTransactionToDb } from './services/firestoreService';
+import { subscribeToTransactions, addTransactionToDb, getUserProfile } from './services/firestoreService';
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -19,9 +19,11 @@ const App: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [user, setUser] = useState<firebase.User | null>(null);
+  
+  // State for User's Personal API Key
+  const [userApiKey, setUserApiKey] = useState<string>('');
 
   // 0. Configuration Check
-  // If firebase.ts failed to export 'auth', it means keys are missing or invalid.
   if (!auth) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 p-6 text-center">
@@ -52,23 +54,37 @@ const App: React.FC = () => {
     }
     const unsubscribe = auth.onAuthStateChanged((currentUser) => {
       setUser(currentUser);
-      setLoading(false);
+      if (!currentUser) {
+        setLoading(false);
+        setTransactions([]);
+        setUserApiKey('');
+      }
     });
     return () => unsubscribe();
   }, []);
 
-  // Subscribe to Firestore updates once User is authenticated
+  // Fetch Data (Transactions & API Key) once User is authenticated
   useEffect(() => {
     if (!user) {
-        setTransactions([]);
         return;
     }
 
-    const unsubscribe = subscribeToTransactions(user.uid, (data) => {
+    // 1. Subscribe to transactions
+    const unsubscribeTransactions = subscribeToTransactions(user.uid, (data) => {
       setTransactions(data);
     });
 
-    return () => unsubscribe();
+    // 2. Fetch User Profile (API Key)
+    const fetchProfile = async () => {
+      const profile = await getUserProfile(user.uid);
+      if (profile && profile.apiKey) {
+        setUserApiKey(profile.apiKey);
+      }
+      setLoading(false);
+    };
+    fetchProfile();
+
+    return () => unsubscribeTransactions();
   }, [user]);
 
   const handleAddTransaction = async (newTx: Omit<Transaction, 'id'>) => {
@@ -122,7 +138,12 @@ const App: React.FC = () => {
       return (
         <TransactionForm 
           onSubmit={handleAddTransaction} 
-          onCancel={() => setShowAddModal(false)} 
+          onCancel={() => setShowAddModal(false)}
+          apiKey={userApiKey}
+          onOpenSettings={() => {
+            setShowAddModal(false);
+            setActiveTab('settings');
+          }}
         />
       );
     }
@@ -133,7 +154,13 @@ const App: React.FC = () => {
       case 'transactions':
         return <TransactionList transactions={transactions} />;
       case 'settings':
-        return <SettingsView />;
+        return (
+          <SettingsView 
+            currentApiKey={userApiKey} 
+            onApiKeyUpdate={(key) => setUserApiKey(key)}
+            userId={user.uid}
+          />
+        );
       default:
         return <Dashboard transactions={transactions} />;
     }

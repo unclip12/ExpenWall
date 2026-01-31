@@ -1,12 +1,10 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { ReceiptData } from "../types";
 
-const processReceiptImage = async (base64Image: string, mimeType: string): Promise<ReceiptData> => {
+const processReceiptImage = async (base64Image: string, mimeType: string, apiKey: string): Promise<ReceiptData> => {
   try {
-    const apiKey = process.env.API_KEY;
-
     if (!apiKey) {
-      throw new Error("API Key is missing. Please ensure process.env.API_KEY is configured.");
+      throw new Error("API Key is missing. Please configure it in Settings.");
     }
 
     const ai = new GoogleGenAI({ apiKey });
@@ -108,7 +106,7 @@ const processReceiptImage = async (base64Image: string, mimeType: string): Promi
     }
 
     if (errorMessage.includes("API key not valid") || errorMessage.includes("API_KEY_INVALID")) {
-      throw new Error("Invalid API Key in environment.");
+      throw new Error("The API Key provided is invalid. Please check your settings.");
     }
 
     throw new Error(errorMessage);

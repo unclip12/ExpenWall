@@ -1,5 +1,5 @@
 import React, { useState, useRef, ChangeEvent } from 'react';
-import { Camera, Upload, Check, Loader2, X, Plus, AlertCircle } from 'lucide-react';
+import { Camera, Upload, Check, Loader2, X, Plus, AlertCircle, Settings } from 'lucide-react';
 import { Category, Transaction, ReceiptData } from '../types';
 import { CATEGORIES, CURRENCIES, DEFAULT_CURRENCY } from '../constants';
 import { geminiService } from '../services/geminiService';
@@ -7,9 +7,11 @@ import { geminiService } from '../services/geminiService';
 interface TransactionFormProps {
   onSubmit: (transaction: Omit<Transaction, 'id'>) => void;
   onCancel: () => void;
+  apiKey?: string;
+  onOpenSettings?: () => void;
 }
 
-export const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit, onCancel }) => {
+export const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit, onCancel, apiKey, onOpenSettings }) => {
   // Initialize form with preferred currency
   const [formData, setFormData] = useState<Omit<Transaction, 'id'>>({
     merchant: '',
@@ -43,6 +45,11 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit, onCa
     const file = e.target.files?.[0];
     if (!file) return;
 
+    if (!apiKey) {
+      setScanError("Missing API Key");
+      return;
+    }
+
     setIsScanning(true);
     setScanError(null);
 
@@ -56,7 +63,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit, onCa
         const mimeType = file.type;
 
         try {
-          const receiptData: ReceiptData = await geminiService.processReceiptImage(base64Data, mimeType);
+          const receiptData: ReceiptData = await geminiService.processReceiptImage(base64Data, mimeType, apiKey);
           
           let detectedCurrency = localStorage.getItem('expenwall_currency') || DEFAULT_CURRENCY;
           
@@ -128,60 +135,82 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit, onCa
       <div className="p-6 space-y-6">
         {/* File Upload Section */}
         <div className="bg-indigo-50 border-2 border-dashed border-indigo-200 rounded-xl p-6 text-center transition-all hover:bg-indigo-100/50">
-          {/* Standard File Upload Input */}
-          <input 
-            type="file" 
-            ref={fileInputRef}
-            accept="image/*"
-            className="hidden" 
-            onChange={handleFileChange}
-          />
-          {/* Camera Capture Input */}
-          <input 
-            type="file" 
-            ref={cameraInputRef}
-            accept="image/*"
-            capture="environment" 
-            className="hidden" 
-            onChange={handleFileChange}
-          />
           
-          {isScanning ? (
-            <div className="flex flex-col items-center justify-center space-y-3">
-              <Loader2 className="w-8 h-8 text-indigo-600 animate-spin" />
-              <p className="text-sm font-medium text-indigo-700">Analyzing Receipt with Gemini AI...</p>
-            </div>
+          {!apiKey ? (
+             <div className="flex flex-col items-center justify-center space-y-3">
+               <div className="p-3 bg-orange-100 text-orange-600 rounded-full">
+                 <AlertCircle className="w-6 h-6" />
+               </div>
+               <p className="text-slate-700 font-medium">AI Receipt Scanning is not configured</p>
+               <p className="text-xs text-slate-500 max-w-xs mx-auto">
+                 To automatically scan receipts, please add your free Gemini API Key in Settings.
+               </p>
+               <button 
+                 onClick={onOpenSettings}
+                 className="mt-2 flex items-center space-x-2 px-4 py-2 bg-white text-indigo-700 border border-indigo-200 rounded-lg hover:bg-indigo-50 transition-colors shadow-sm text-sm font-medium"
+               >
+                 <Settings className="w-4 h-4" />
+                 <span>Configure API Key</span>
+               </button>
+             </div>
           ) : (
-            <div className="space-y-3">
-              <div className="flex justify-center space-x-4">
-                <button 
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="flex items-center space-x-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
-                >
-                  <Upload className="w-4 h-4" />
-                  <span>Upload Receipt</span>
-                </button>
-                <button 
-                  type="button"
-                  onClick={() => cameraInputRef.current?.click()}
-                  className="flex items-center space-x-2 px-4 py-2 bg-white text-indigo-700 border border-indigo-200 rounded-lg hover:bg-indigo-50 transition-colors shadow-sm"
-                >
-                  <Camera className="w-4 h-4" />
-                  <span>Scan with Camera</span>
-                </button>
-              </div>
-              <p className="text-xs text-indigo-400">Supports JPG, PNG, WEBP. AI will auto-fill the form.</p>
+            <>
+              {/* Standard File Upload Input */}
+              <input 
+                type="file" 
+                ref={fileInputRef}
+                accept="image/*"
+                className="hidden" 
+                onChange={handleFileChange}
+              />
+              {/* Camera Capture Input */}
+              <input 
+                type="file" 
+                ref={cameraInputRef}
+                accept="image/*"
+                capture="environment" 
+                className="hidden" 
+                onChange={handleFileChange}
+              />
               
-              {scanError && (
-                <div className="flex flex-col items-center space-y-2 max-w-md mx-auto">
-                    <div className="flex items-start justify-center space-x-2 text-red-500 font-medium bg-red-50 p-2 rounded-lg border border-red-100 w-full">
-                        <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                        <p className="text-xs text-left break-words">{scanError}</p>
+              {isScanning ? (
+                <div className="flex flex-col items-center justify-center space-y-3">
+                  <Loader2 className="w-8 h-8 text-indigo-600 animate-spin" />
+                  <p className="text-sm font-medium text-indigo-700">Analyzing Receipt with Gemini AI...</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex justify-center space-x-4">
+                    <button 
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="flex items-center space-x-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
+                    >
+                      <Upload className="w-4 h-4" />
+                      <span>Upload Receipt</span>
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={() => cameraInputRef.current?.click()}
+                      className="flex items-center space-x-2 px-4 py-2 bg-white text-indigo-700 border border-indigo-200 rounded-lg hover:bg-indigo-50 transition-colors shadow-sm"
+                    >
+                      <Camera className="w-4 h-4" />
+                      <span>Scan with Camera</span>
+                    </button>
+                  </div>
+                  <p className="text-xs text-indigo-400">Supports JPG, PNG, WEBP. AI will auto-fill the form.</p>
+                  
+                  {scanError && (
+                    <div className="flex flex-col items-center space-y-2 max-w-md mx-auto">
+                        <div className="flex items-start justify-center space-x-2 text-red-500 font-medium bg-red-50 p-2 rounded-lg border border-red-100 w-full">
+                            <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                            <p className="text-xs text-left break-words">{scanError}</p>
+                        </div>
                     </div>
+                  )}
                 </div>
               )}
-            </div>
+            </>
           )}
         </div>
 

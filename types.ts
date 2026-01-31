@@ -35,3 +35,8 @@ export interface ReceiptData {
   category: string;
   items: TransactionItem[];
 }
+
+export interface UserProfile {
+  apiKey?: string;
+  updatedAt?: any;
+}

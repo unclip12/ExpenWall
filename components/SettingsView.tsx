@@ -1,11 +1,22 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Save, CheckCircle, AlertCircle, Globe, ChevronDown, Check, Search } from 'lucide-react';
+import { Save, CheckCircle, AlertCircle, Globe, ChevronDown, Check, Search, Key, ExternalLink, Loader2 } from 'lucide-react';
 import { CURRENCIES, DEFAULT_CURRENCY } from '../constants';
+import { saveUserApiKey } from '../services/firestoreService';
 
-export const SettingsView: React.FC = () => {
+interface SettingsViewProps {
+  currentApiKey?: string;
+  onApiKeyUpdate?: (key: string) => void;
+  userId?: string;
+}
+
+export const SettingsView: React.FC<SettingsViewProps> = ({ currentApiKey = '', onApiKeyUpdate, userId }) => {
   const [currencyCode, setCurrencyCode] = useState(DEFAULT_CURRENCY);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
   
+  // API Key State
+  const [apiKeyInput, setApiKeyInput] = useState(currentApiKey);
+  const [isSavingKey, setIsSavingKey] = useState(false);
+
   // Dropdown state
   const [isCurrencyListOpen, setIsCurrencyListOpen] = useState(false);
   const [currencySearch, setCurrencySearch] = useState('');
@@ -17,6 +28,10 @@ export const SettingsView: React.FC = () => {
     if (savedCurrency) {
       setCurrencyCode(savedCurrency);
     }
+    // Sync prop to state if it loads late
+    if (currentApiKey) {
+      setApiKeyInput(currentApiKey);
+    }
 
     // Click outside handler for dropdown
     const handleClickOutside = (event: MouseEvent) => {
@@ -27,11 +42,31 @@ export const SettingsView: React.FC = () => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
 
-  }, []);
+  }, [currentApiKey]);
 
   const showMessage = (type: 'success' | 'error', text: string) => {
     setMessage({ type, text });
     setTimeout(() => setMessage(null), 3000);
+  };
+
+  const handleSaveApiKey = async () => {
+    if (!userId) {
+      showMessage('error', 'User not authenticated.');
+      return;
+    }
+
+    setIsSavingKey(true);
+    try {
+      const cleanedKey = apiKeyInput.trim();
+      await saveUserApiKey(userId, cleanedKey);
+      if (onApiKeyUpdate) onApiKeyUpdate(cleanedKey);
+      showMessage('success', 'API Key saved successfully!');
+    } catch (error) {
+      console.error(error);
+      showMessage('error', 'Failed to save API Key.');
+    } finally {
+      setIsSavingKey(false);
+    }
   };
 
   const selectedCurrency = CURRENCIES.find(c => c.code === currencyCode) || CURRENCIES[0];
@@ -55,6 +90,59 @@ export const SettingsView: React.FC = () => {
           <span className="font-medium">{message.text}</span>
         </div>
       )}
+
+      {/* API Key Section */}
+      <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+        <div className="flex items-center space-x-3 mb-6">
+          <div className="p-2 bg-indigo-50 rounded-lg">
+            <Key className="w-6 h-6 text-indigo-600" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-slate-800">Gemini AI Configuration</h2>
+            <p className="text-sm text-slate-500">Enable receipt scanning with your own AI key</p>
+          </div>
+        </div>
+
+        <div className="max-w-2xl space-y-4">
+           <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl">
+              <p className="text-sm text-blue-800 mb-2">
+                To use the AI receipt scanner, you need a Google Gemini API Key. It's free to generate.
+              </p>
+              <a 
+                href="https://aistudio.google.com/app/apikey" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="inline-flex items-center text-sm font-bold text-blue-600 hover:text-blue-800 hover:underline"
+              >
+                Get your free API Key here
+                <ExternalLink className="w-3 h-3 ml-1" />
+              </a>
+           </div>
+
+           <div className="space-y-2">
+              <label className="text-sm font-semibold text-slate-700">Your Gemini API Key</label>
+              <div className="flex space-x-3">
+                <input 
+                  type="password" 
+                  value={apiKeyInput}
+                  onChange={(e) => setApiKeyInput(e.target.value)}
+                  placeholder="Paste your AI Studio API Key here"
+                  className="flex-1 px-4 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
+                />
+                <button 
+                  onClick={handleSaveApiKey}
+                  disabled={isSavingKey}
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center min-w-[100px] justify-center"
+                >
+                  {isSavingKey ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Save Key'}
+                </button>
+              </div>
+              <p className="text-xs text-slate-400">
+                Your key is encrypted and stored securely with your Secret ID profile. We never share it.
+              </p>
+           </div>
+        </div>
+      </div>
 
       {/* App Preferences Section */}
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
