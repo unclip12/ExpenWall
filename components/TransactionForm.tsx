@@ -42,6 +42,28 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit, onCa
     if (scanError) setScanError(null);
   };
 
+  const parseErrorMessage = (errorMsg: string): string => {
+    try {
+      // If it looks like JSON, try to parse it
+      if (errorMsg.includes('{')) {
+        const jsonStart = errorMsg.indexOf('{');
+        const jsonStr = errorMsg.substring(jsonStart);
+        const parsed = JSON.parse(jsonStr);
+        
+        // Google API errors usually follow this structure
+        if (parsed.error && parsed.error.message) {
+          return parsed.error.message;
+        }
+        if (parsed.message) {
+          return parsed.message;
+        }
+      }
+      return errorMsg;
+    } catch (e) {
+      return errorMsg;
+    }
+  };
+
   const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -199,10 +221,15 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit, onCa
                   <p className="text-xs text-indigo-400">Supports JPG, PNG, WEBP. AI will auto-fill the form.</p>
                   
                   {scanError && (
-                    <div className="flex flex-col items-center space-y-2 max-w-md mx-auto">
-                        <div className="flex items-start justify-center space-x-2 text-red-500 font-medium bg-red-50 p-2 rounded-lg border border-red-100 w-full">
-                            <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                            <p className="text-xs text-left break-words">{scanError}</p>
+                    <div className="flex flex-col items-center space-y-2 max-w-md mx-auto w-full">
+                        <div className="flex items-start justify-start space-x-3 text-red-600 bg-red-50 p-3 rounded-xl border border-red-100 w-full shadow-sm text-left">
+                            <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                            <div className="flex-1 min-w-0">
+                                <p className="text-sm font-semibold mb-1">Scanning Failed</p>
+                                <div className="text-xs break-words font-mono bg-white/50 p-2 rounded border border-red-100/50 max-h-32 overflow-y-auto">
+                                  {parseErrorMessage(scanError)}
+                                </div>
+                            </div>
                         </div>
                     </div>
                   )}

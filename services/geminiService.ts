@@ -1,7 +1,8 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { ReceiptData, StatementData, DraftTransaction } from "../types";
 
-const GEMINI_MODEL = 'gemini-2.0-flash';
+// Using the experimental model as it typically has better availability/quotas in preview
+const GEMINI_MODEL = 'gemini-2.0-flash-exp';
 
 /**
  * Creates a new GoogleGenAI instance. Centralised so the model name
