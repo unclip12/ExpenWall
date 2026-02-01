@@ -2,126 +2,98 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
+    // Helper function to check if user is authenticated and owns the data
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
     function isOwner(userId) {
       return request.auth != null && request.auth.uid == userId;
     }
 
-    // --- Transactions ---
+    // Transactions
     match /transactions/{transactionId} {
-      allow read: if isOwner(resource.data.userId);
-      allow create: if isOwner(request.resource.data.userId)
-                     && request.resource.data.keys().hasAll(['userId', 'merchant', 'amount', 'date', 'category', 'type', 'currency']);
-      allow update: if isOwner(resource.data.userId)
-                     && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['userId']);
-      allow delete: if isOwner(resource.data.userId);
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isOwner(request.resource.data.userId);
+      allow update, delete: if isAuthenticated() && isOwner(resource.data.userId);
     }
 
-    // --- Cravings ---
+    // Cravings
     match /cravings/{cravingId} {
-      allow read: if isOwner(resource.data.userId);
-      allow create: if isOwner(request.resource.data.userId)
-                     && request.resource.data.keys().hasAll(['userId', 'items', 'totalAmount', 'outcome', 'cravedAt']);
-      allow update: if isOwner(resource.data.userId)
-                     && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['userId']);
-      allow delete: if isOwner(resource.data.userId);
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isOwner(request.resource.data.userId);
+      allow update, delete: if isAuthenticated() && isOwner(resource.data.userId);
     }
 
-    // --- Products ---
+    // Products
     match /products/{productId} {
-      allow read: if isOwner(resource.data.userId);
-      allow create: if isOwner(request.resource.data.userId);
-      allow update: if isOwner(resource.data.userId)
-                     && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['userId']);
-      allow delete: if isOwner(resource.data.userId);
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isOwner(request.resource.data.userId);
+      allow update, delete: if isAuthenticated() && isOwner(resource.data.userId);
     }
 
-    // --- Price History ---
+    // Price History
     match /priceHistory/{priceId} {
-      allow read: if isOwner(resource.data.userId);
-      allow create: if isOwner(request.resource.data.userId);
-      allow update: if isOwner(resource.data.userId);
-      allow delete: if isOwner(resource.data.userId);
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isOwner(request.resource.data.userId);
+      allow update, delete: if isAuthenticated() && isOwner(resource.data.userId);
     }
 
-    // --- Recurring Transactions ---
+    // Recurring Transactions
     match /recurringTransactions/{recurringId} {
-      allow read: if isOwner(resource.data.userId);
-      allow create: if isOwner(request.resource.data.userId)
-                     && request.resource.data.keys().hasAll(['userId', 'merchant', 'amount', 'category', 'type', 'frequency', 'startDate']);
-      allow update: if isOwner(resource.data.userId)
-                     && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['userId']);
-      allow delete: if isOwner(resource.data.userId);
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isOwner(request.resource.data.userId);
+      allow update, delete: if isAuthenticated() && isOwner(resource.data.userId);
     }
 
-    // --- Budgets ---
+    // Budgets
     match /budgets/{budgetId} {
-      allow read: if isOwner(resource.data.userId);
-      allow create: if isOwner(request.resource.data.userId)
-                     && request.resource.data.keys().hasAll(['userId', 'category', 'amount', 'period']);
-      allow update: if isOwner(resource.data.userId)
-                     && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['userId']);
-      allow delete: if isOwner(resource.data.userId);
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isOwner(request.resource.data.userId);
+      allow update, delete: if isAuthenticated() && isOwner(resource.data.userId);
     }
 
-    // --- Buying List ---
+    // Buying List
     match /buyingList/{itemId} {
-      allow read: if isOwner(resource.data.userId);
-      allow create: if isOwner(request.resource.data.userId)
-                     && request.resource.data.keys().hasAll(['userId', 'name', 'isBought']);
-      allow update: if isOwner(resource.data.userId)
-                     && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['userId']);
-      allow delete: if isOwner(resource.data.userId);
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isOwner(request.resource.data.userId);
+      allow update, delete: if isAuthenticated() && isOwner(resource.data.userId);
     }
-    
-    // --- User Profiles ---
+
+    // User Profiles
     match /userProfiles/{userId} {
-      allow read, write: if isOwner(userId);
+      allow read, write: if isAuthenticated() && isOwner(userId);
     }
 
-    // --- Merchant Rules ---
+    // Merchant Rules
     match /merchantRules/{ruleId} {
-      allow read: if isOwner(resource.data.userId);
-      allow create: if isOwner(request.resource.data.userId)
-                     && request.resource.data.keys().hasAll(['userId', 'originalName', 'renamedTo']);
-      allow update: if isOwner(resource.data.userId)
-                     && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['userId']);
-      allow delete: if isOwner(resource.data.userId);
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isOwner(request.resource.data.userId);
+      allow update, delete: if isAuthenticated() && isOwner(resource.data.userId);
     }
 
-    // --- Wallets ---
+    // Wallets
     match /wallets/{walletId} {
-      allow read: if isOwner(resource.data.userId);
-      allow create: if isOwner(request.resource.data.userId)
-                     && request.resource.data.keys().hasAll(['userId', 'name', 'type']);
-      allow update: if isOwner(resource.data.userId)
-                     && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['userId']);
-      allow delete: if isOwner(resource.data.userId);
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isOwner(request.resource.data.userId);
+      allow update, delete: if isAuthenticated() && isOwner(resource.data.userId);
     }
 
-    // Legacy collection names for backward compatibility
+    // Legacy collection names (for backward compatibility)
     match /buying_list/{itemId} {
-      allow read: if isOwner(resource.data.userId);
-      allow create: if isOwner(request.resource.data.userId);
-      allow update: if isOwner(resource.data.userId);
-      allow delete: if isOwner(resource.data.userId);
+      allow read, write: if isAuthenticated();
     }
 
     match /merchant_rules/{ruleId} {
-      allow read: if isOwner(resource.data.userId);
-      allow create: if isOwner(request.resource.data.userId);
-      allow update: if isOwner(resource.data.userId);
-      allow delete: if isOwner(resource.data.userId);
+      allow read, write: if isAuthenticated();
     }
 
     match /recurring_transactions/{recurringId} {
-      allow read: if isOwner(resource.data.userId);
-      allow create: if isOwner(request.resource.data.userId);
-      allow update: if isOwner(resource.data.userId);
-      allow delete: if isOwner(resource.data.userId);
+      allow read, write: if isAuthenticated();
     }
 
     match /users/{userId} {
-      allow read, write: if isOwner(userId);
+      allow read, write: if isAuthenticated() && isOwner(userId);
     }
   }
 }
