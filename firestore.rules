@@ -16,8 +16,35 @@ service cloud.firestore {
       allow delete: if isOwner(resource.data.userId);
     }
 
+    // --- Cravings ---
+    match /cravings/{cravingId} {
+      allow read: if isOwner(resource.data.userId);
+      allow create: if isOwner(request.resource.data.userId)
+                     && request.resource.data.keys().hasAll(['userId', 'items', 'totalAmount', 'outcome', 'cravedAt']);
+      allow update: if isOwner(resource.data.userId)
+                     && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['userId']);
+      allow delete: if isOwner(resource.data.userId);
+    }
+
+    // --- Products ---
+    match /products/{productId} {
+      allow read: if isOwner(resource.data.userId);
+      allow create: if isOwner(request.resource.data.userId);
+      allow update: if isOwner(resource.data.userId)
+                     && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['userId']);
+      allow delete: if isOwner(resource.data.userId);
+    }
+
+    // --- Price History ---
+    match /priceHistory/{priceId} {
+      allow read: if isOwner(resource.data.userId);
+      allow create: if isOwner(request.resource.data.userId);
+      allow update: if isOwner(resource.data.userId);
+      allow delete: if isOwner(resource.data.userId);
+    }
+
     // --- Recurring Transactions ---
-    match /recurring_transactions/{recurringId} {
+    match /recurringTransactions/{recurringId} {
       allow read: if isOwner(resource.data.userId);
       allow create: if isOwner(request.resource.data.userId)
                      && request.resource.data.keys().hasAll(['userId', 'merchant', 'amount', 'category', 'type', 'frequency', 'startDate']);
@@ -37,7 +64,7 @@ service cloud.firestore {
     }
 
     // --- Buying List ---
-    match /buying_list/{itemId} {
+    match /buyingList/{itemId} {
       allow read: if isOwner(resource.data.userId);
       allow create: if isOwner(request.resource.data.userId)
                      && request.resource.data.keys().hasAll(['userId', 'name', 'isBought']);
@@ -46,13 +73,13 @@ service cloud.firestore {
       allow delete: if isOwner(resource.data.userId);
     }
     
-    // --- User Profile ---
-    match /users/{userId} {
+    // --- User Profiles ---
+    match /userProfiles/{userId} {
       allow read, write: if isOwner(userId);
     }
 
     // --- Merchant Rules ---
-    match /merchant_rules/{ruleId} {
+    match /merchantRules/{ruleId} {
       allow read: if isOwner(resource.data.userId);
       allow create: if isOwner(request.resource.data.userId)
                      && request.resource.data.keys().hasAll(['userId', 'originalName', 'renamedTo']);
@@ -69,6 +96,32 @@ service cloud.firestore {
       allow update: if isOwner(resource.data.userId)
                      && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['userId']);
       allow delete: if isOwner(resource.data.userId);
+    }
+
+    // Legacy collection names for backward compatibility
+    match /buying_list/{itemId} {
+      allow read: if isOwner(resource.data.userId);
+      allow create: if isOwner(request.resource.data.userId);
+      allow update: if isOwner(resource.data.userId);
+      allow delete: if isOwner(resource.data.userId);
+    }
+
+    match /merchant_rules/{ruleId} {
+      allow read: if isOwner(resource.data.userId);
+      allow create: if isOwner(request.resource.data.userId);
+      allow update: if isOwner(resource.data.userId);
+      allow delete: if isOwner(resource.data.userId);
+    }
+
+    match /recurring_transactions/{recurringId} {
+      allow read: if isOwner(resource.data.userId);
+      allow create: if isOwner(request.resource.data.userId);
+      allow update: if isOwner(resource.data.userId);
+      allow delete: if isOwner(resource.data.userId);
+    }
+
+    match /users/{userId} {
+      allow read, write: if isOwner(userId);
     }
   }
 }
