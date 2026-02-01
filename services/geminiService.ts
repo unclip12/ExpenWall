@@ -17,7 +17,7 @@ class GeminiService {
     apiKey: string
   ): Promise<ReceiptData> {
     const ai = this.getAI(apiKey);
-
+    
     const prompt = `You are a receipt parser. Extract the following from this receipt image:
 - merchant: Store/business name
 - date: Date in YYYY-MM-DD format
@@ -30,8 +30,15 @@ class GeminiService {
       model: GEMINI_MODEL,
       contents: {
         parts: [
-          { inlineData: { mimeType, data: base64Data } },
-          { text: prompt }
+          {
+            inlineData: {
+              mimeType: mimeType,
+              data: base64Data
+            }
+          },
+          {
+            text: prompt
+          }
         ]
       },
       config: {
@@ -59,8 +66,9 @@ class GeminiService {
       }
     });
 
-    if (!response.text) throw new Error("No data returned from Gemini");
-    return JSON.parse(response.text);
+    const text = response.text;
+    if (!text) throw new Error("No data returned from Gemini");
+    return JSON.parse(text);
   }
 
   /**
@@ -89,8 +97,15 @@ For each transaction, determine:
       model: GEMINI_MODEL,
       contents: {
         parts: [
-          { inlineData: { mimeType, data: base64Data } },
-          { text: prompt }
+          {
+            inlineData: {
+              mimeType: mimeType,
+              data: base64Data
+            }
+          },
+          {
+            text: prompt
+          }
         ]
       },
       config: {
@@ -116,8 +131,9 @@ For each transaction, determine:
       }
     });
 
-    if (!response.text) throw new Error("No data returned from Gemini");
-    return JSON.parse(response.text);
+    const text = response.text;
+    if (!text) throw new Error("No data returned from Gemini");
+    return JSON.parse(text);
   }
 
   /**
@@ -160,13 +176,13 @@ Apply the correction and return the UPDATED array in the same format. Keep all f
       }
     });
 
-    if (!response.text) throw new Error("No data returned from Gemini");
-    return JSON.parse(response.text);
+    const text = response.text;
+    if (!text) throw new Error("No data returned from Gemini");
+    return JSON.parse(text);
   }
 
   /**
-   * NEW: Parse natural language transaction input
-   * Example: "Spent 500 on groceries at DMart yesterday"
+   * Parse natural language transaction input
    */
   async parseNaturalLanguage(
     input: string,
@@ -211,12 +227,13 @@ Extract:
       }
     });
 
-    if (!response.text) throw new Error("No data returned from Gemini");
-    return JSON.parse(response.text);
+    const text = response.text;
+    if (!text) throw new Error("No data returned from Gemini");
+    return JSON.parse(text);
   }
 
   /**
-   * NEW: Generate AI insights from transaction data
+   * Generate AI insights from transaction data
    */
   async generateInsights(
     transactions: any[],
@@ -254,8 +271,9 @@ Analyze and provide:
       }
     });
 
-    if (!response.text) throw new Error("No data returned from Gemini");
-    return JSON.parse(response.text);
+    const text = response.text;
+    if (!text) throw new Error("No data returned from Gemini");
+    return JSON.parse(text);
   }
 }
 
