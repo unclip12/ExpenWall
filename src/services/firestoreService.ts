@@ -1,18 +1,5 @@
-import { 
-  collection, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
-  doc, 
-  query, 
-  where, 
-  onSnapshot, 
-  orderBy,
-  getDoc,
-  setDoc,
-  writeBatch
-} from 'firebase/firestore';
 import { db } from '../firebase';
+import firebase from 'firebase/compat/app';
 import { 
   Transaction, 
   MerchantRule, 
@@ -25,197 +12,233 @@ import {
   PriceHistory
 } from '../types';
 
-// TRANSACTIONS
+// ==================== TRANSACTIONS ====================
+
 export const subscribeToTransactions = (userId: string, callback: (data: Transaction[]) => void) => {
-  const q = query(
-    collection(db, 'transactions'),
-    where('userId', '==', userId),
-    orderBy('date', 'desc')
-  );
-  return onSnapshot(q, (snapshot) => {
-    const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction));
-    callback(data);
-  });
+  return db.collection('transactions')
+    .where('userId', '==', userId)
+    .orderBy('date', 'desc')
+    .onSnapshot(snapshot => {
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction));
+      callback(data);
+    });
 };
 
 export const addTransactionToDb = async (transaction: Omit<Transaction, 'id'>, userId: string) => {
-  await addDoc(collection(db, 'transactions'), { ...transaction, userId });
+  await db.collection('transactions').add({
+    ...transaction,
+    userId,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  });
 };
 
 export const addTransactionsBatch = async (transactions: Omit<Transaction, 'id'>[], userId: string) => {
-  const batch = writeBatch(db);
+  const batch = db.batch();
   transactions.forEach(tx => {
-    const ref = doc(collection(db, 'transactions'));
-    batch.set(ref, { ...tx, userId });
+    const ref = db.collection('transactions').doc();
+    batch.set(ref, {
+      ...tx,
+      userId,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
   });
   await batch.commit();
 };
 
 export const updateTransaction = async (id: string, data: Partial<Transaction>) => {
-  await updateDoc(doc(db, 'transactions', id), data);
+  await db.collection('transactions').doc(id).update(data);
 };
 
 export const deleteTransaction = async (id: string) => {
-  await deleteDoc(doc(db, 'transactions', id));
+  await db.collection('transactions').doc(id).delete();
 };
 
-// MERCHANT RULES
+// ==================== MERCHANT RULES ====================
+
 export const subscribeToRules = (userId: string, callback: (data: MerchantRule[]) => void) => {
-  const q = query(collection(db, 'merchantRules'), where('userId', '==', userId));
-  return onSnapshot(q, (snapshot) => {
-    const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as MerchantRule));
-    callback(data);
-  });
+  return db.collection('merchantRules')
+    .where('userId', '==', userId)
+    .onSnapshot(snapshot => {
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as MerchantRule));
+      callback(data);
+    });
 };
 
 export const addMerchantRule = async (rule: Omit<MerchantRule, 'id' | 'userId'>, userId: string) => {
-  await addDoc(collection(db, 'merchantRules'), { ...rule, userId });
+  await db.collection('merchantRules').add({ ...rule, userId });
 };
 
 export const deleteMerchantRule = async (id: string) => {
-  await deleteDoc(doc(db, 'merchantRules', id));
+  await db.collection('merchantRules').doc(id).delete();
 };
 
-// BUYING LIST
+// ==================== BUYING LIST ====================
+
 export const subscribeToBuyingList = (userId: string, callback: (data: BuyingItem[]) => void) => {
-  const q = query(collection(db, 'buyingList'), where('userId', '==', userId));
-  return onSnapshot(q, (snapshot) => {
-    const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as BuyingItem));
-    callback(data);
-  });
+  return db.collection('buyingList')
+    .where('userId', '==', userId)
+    .onSnapshot(snapshot => {
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as BuyingItem));
+      callback(data);
+    });
 };
 
 export const addBuyingItem = async (item: Omit<BuyingItem, 'id' | 'userId'>, userId: string) => {
-  await addDoc(collection(db, 'buyingList'), { ...item, userId });
+  await db.collection('buyingList').add({
+    ...item,
+    userId,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  });
 };
 
 export const updateBuyingItem = async (id: string, data: Partial<BuyingItem>) => {
-  await updateDoc(doc(db, 'buyingList', id), data);
+  await db.collection('buyingList').doc(id).update(data);
+};
+
+export const updateBuyingItemStatus = async (id: string, isBought: boolean) => {
+  await db.collection('buyingList').doc(id).update({ isBought });
 };
 
 export const deleteBuyingItem = async (id: string) => {
-  await deleteDoc(doc(db, 'buyingList', id));
+  await db.collection('buyingList').doc(id).delete();
 };
 
-// WALLETS
+// ==================== WALLETS ====================
+
 export const subscribeToWallets = (userId: string, callback: (data: Wallet[]) => void) => {
-  const q = query(collection(db, 'wallets'), where('userId', '==', userId));
-  return onSnapshot(q, (snapshot) => {
-    const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Wallet));
-    callback(data);
-  });
+  return db.collection('wallets')
+    .where('userId', '==', userId)
+    .onSnapshot(snapshot => {
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Wallet));
+      callback(data);
+    });
 };
 
 export const addWalletToDb = async (wallet: Omit<Wallet, 'id' | 'userId'>, userId: string) => {
-  await addDoc(collection(db, 'wallets'), { ...wallet, userId });
+  await db.collection('wallets').add({
+    ...wallet,
+    userId,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  });
 };
 
 export const deleteWalletFromDb = async (id: string) => {
-  await deleteDoc(doc(db, 'wallets', id));
+  await db.collection('wallets').doc(id).delete();
 };
 
-// RECURRING TRANSACTIONS
+// ==================== RECURRING TRANSACTIONS ====================
+
 export const subscribeToRecurringTransactions = (userId: string, callback: (data: RecurringTransaction[]) => void) => {
-  const q = query(collection(db, 'recurringTransactions'), where('userId', '==', userId));
-  return onSnapshot(q, (snapshot) => {
-    const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as RecurringTransaction));
-    callback(data);
-  });
+  return db.collection('recurringTransactions')
+    .where('userId', '==', userId)
+    .onSnapshot(snapshot => {
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as RecurringTransaction));
+      callback(data);
+    });
 };
 
 export const addRecurringTransaction = async (recurring: Omit<RecurringTransaction, 'id' | 'userId'>, userId: string) => {
-  await addDoc(collection(db, 'recurringTransactions'), { ...recurring, userId });
+  await db.collection('recurringTransactions').add({ ...recurring, userId });
 };
 
 export const toggleRecurringActive = async (id: string, isActive: boolean) => {
-  await updateDoc(doc(db, 'recurringTransactions', id), { isActive });
+  await db.collection('recurringTransactions').doc(id).update({ isActive });
 };
 
 export const deleteRecurringTransaction = async (id: string) => {
-  await deleteDoc(doc(db, 'recurringTransactions', id));
+  await db.collection('recurringTransactions').doc(id).delete();
 };
 
-// BUDGETS
+// ==================== BUDGETS ====================
+
 export const subscribeToBudgets = (userId: string, callback: (data: Budget[]) => void) => {
-  const q = query(collection(db, 'budgets'), where('userId', '==', userId));
-  return onSnapshot(q, (snapshot) => {
-    const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Budget));
-    callback(data);
-  });
+  return db.collection('budgets')
+    .where('userId', '==', userId)
+    .onSnapshot(snapshot => {
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Budget));
+      callback(data);
+    });
 };
 
 export const addBudget = async (budget: Omit<Budget, 'id' | 'userId'>, userId: string) => {
-  await addDoc(collection(db, 'budgets'), { ...budget, userId });
+  await db.collection('budgets').add({
+    ...budget,
+    userId,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  });
 };
 
 export const updateBudget = async (id: string, data: Partial<Budget>) => {
-  await updateDoc(doc(db, 'budgets', id), data);
+  await db.collection('budgets').doc(id).update(data);
 };
 
 export const deleteBudget = async (id: string) => {
-  await deleteDoc(doc(db, 'budgets', id));
+  await db.collection('budgets').doc(id).delete();
 };
 
-// USER PROFILE
+// ==================== USER PROFILE ====================
+
 export const getUserProfile = async (userId: string): Promise<UserProfile | null> => {
-  const docRef = doc(db, 'userProfiles', userId);
-  const docSnap = await getDoc(docRef);
-  return docSnap.exists() ? (docSnap.data() as UserProfile) : null;
+  const doc = await db.collection('userProfiles').doc(userId).get();
+  return doc.exists ? (doc.data() as UserProfile) : null;
 };
 
 export const saveUserApiKey = async (userId: string, apiKey: string) => {
-  await setDoc(doc(db, 'userProfiles', userId), { apiKey, updatedAt: new Date() }, { merge: true });
+  await db.collection('userProfiles').doc(userId).set({ 
+    apiKey, 
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp() 
+  }, { merge: true });
 };
 
 export const saveUserTheme = async (userId: string, theme: string) => {
-  await setDoc(doc(db, 'userProfiles', userId), { theme, updatedAt: new Date() }, { merge: true });
+  await db.collection('userProfiles').doc(userId).set({ 
+    theme, 
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp() 
+  }, { merge: true });
 };
 
 export const saveUserAISettings = async (userId: string, settings: Partial<UserProfile>) => {
-  await setDoc(doc(db, 'userProfiles', userId), { ...settings, updatedAt: new Date() }, { merge: true });
+  await db.collection('userProfiles').doc(userId).set({
+    ...settings,
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  }, { merge: true });
 };
 
-// PRODUCTS (Price Tracking)
+// ==================== PRODUCTS & PRICE HISTORY ====================
+
 export const subscribeToProducts = (userId: string, callback: (data: Product[]) => void) => {
-  const q = query(collection(db, 'products'), where('userId', '==', userId));
-  return onSnapshot(q, (snapshot) => {
-    const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
-    callback(data);
-  });
+  return db.collection('products')
+    .where('userId', '==', userId)
+    .onSnapshot(snapshot => {
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+      callback(data);
+    });
 };
 
 export const addOrUpdateProduct = async (product: Omit<Product, 'id' | 'userId'>, userId: string) => {
-  const q = query(
-    collection(db, 'products'),
-    where('userId', '==', userId),
-    where('name', '==', product.name)
-  );
-  
-  const snapshot = await getDoc(q as any);
-  if (snapshot.exists()) {
-    await updateDoc(doc(db, 'products', snapshot.id), product);
+  const snapshot = await db.collection('products')
+    .where('userId', '==', userId)
+    .where('name', '==', product.name)
+    .get();
+
+  if (!snapshot.empty) {
+    const docId = snapshot.docs[0].id;
+    await db.collection('products').doc(docId).update(product);
   } else {
-    await addDoc(collection(db, 'products'), { ...product, userId });
+    await db.collection('products').add({ ...product, userId });
   }
 };
 
-// PRICE HISTORY
 export const addPriceHistory = async (priceHistory: Omit<PriceHistory, 'id' | 'userId'>, userId: string) => {
-  await addDoc(collection(db, 'priceHistory'), { ...priceHistory, userId });
+  await db.collection('priceHistory').add({ ...priceHistory, userId });
 };
 
 export const getPriceHistory = async (userId: string, productName: string): Promise<PriceHistory[]> => {
-  const q = query(
-    collection(db, 'priceHistory'),
-    where('userId', '==', userId),
-    where('productName', '==', productName),
-    orderBy('date', 'desc')
-  );
+  const snapshot = await db.collection('priceHistory')
+    .where('userId', '==', userId)
+    .where('productName', '==', productName)
+    .orderBy('date', 'desc')
+    .get();
   
-  return new Promise((resolve) => {
-    onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PriceHistory));
-      resolve(data);
-    });
-  });
+  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PriceHistory));
 };

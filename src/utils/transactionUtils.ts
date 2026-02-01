@@ -1,4 +1,4 @@
-import { Transaction, ProcessedTransaction, MerchantRule, Category, SubcategorySuggestion } from '../types';
+import { Transaction, ProcessedTransaction, MerchantRule, Category, SubcategorySuggestion, TransactionItem } from '../types';
 import { MERCHANT_EMOJI_MAP, CATEGORY_EMOJIS, SUBCATEGORY_KEYWORDS } from '../constants';
 
 export const getMerchantEmoji = (merchant: string): string => {
@@ -14,7 +14,7 @@ export const getMerchantEmoji = (merchant: string): string => {
 };
 
 export const getCategoryEmoji = (category: Category | string): string => {
-  return CATEGORY_EMOJIS[category] || '📄';
+  return CATEGORY_EMOJIS[category as string] || '📄';
 };
 
 export const getSubcategoryEmoji = (subcategory: string): string => {
@@ -106,4 +106,10 @@ export const formatTime = (dateStr: string): string => {
     minute: '2-digit',
     hour12: true
   });
+};
+
+export const getItemDisplayName = (items?: TransactionItem[]): string => {
+  if (!items || items.length === 0) return '';
+  if (items.length === 1) return items[0].name;
+  return `${items[0].name} +${items.length - 1} more items`;
 };

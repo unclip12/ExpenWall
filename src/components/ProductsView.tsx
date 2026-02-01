@@ -18,6 +18,7 @@ interface ProductsViewProps {
 
 export const ProductsView: React.FC<ProductsViewProps> = ({
   products,
+  priceHistory,
   onProductClick
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
