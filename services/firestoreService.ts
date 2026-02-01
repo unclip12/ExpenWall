@@ -117,7 +117,7 @@ export const subscribeToCravings = (userId: string, callback: (data: Craving[]) 
       // Sort in-memory instead of using orderBy to avoid composite index requirement
       const data = snapshot.docs
         .map((doc: any) => ({ id: doc.id, ...doc.data() } as Craving))
-        .sort((a, b) => b.cravedAt.localeCompare(a.cravedAt));
+        .sort((a: Craving, b: Craving) => b.cravedAt.localeCompare(a.cravedAt));
       callback(data);
     });
 };
