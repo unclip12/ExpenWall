@@ -9,7 +9,9 @@ import {
   Budget,
   UserProfile,
   Product,
-  PriceHistory
+  PriceHistory,
+  Craving,
+  CravingOutcome
 } from '../types';
 
 // ==================== TRANSACTIONS ====================
@@ -92,7 +94,10 @@ export const addBuyingItem = async (item: Omit<BuyingItem, 'id' | 'userId'>, use
 };
 
 export const updateBuyingItem = async (id: string, data: Partial<BuyingItem>) => {
-  await db.collection('buyingList').doc(id).update(data);
+  await db.collection('buyingList').doc(id).update({
+    ...data,
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  });
 };
 
 export const updateBuyingItemStatus = async (id: string, isBought: boolean) => {
@@ -101,6 +106,37 @@ export const updateBuyingItemStatus = async (id: string, isBought: boolean) => {
 
 export const deleteBuyingItem = async (id: string) => {
   await db.collection('buyingList').doc(id).delete();
+};
+
+// ==================== CRAVINGS ====================
+
+export const subscribeToCravings = (userId: string, callback: (data: Craving[]) => void) => {
+  return db.collection('cravings')
+    .where('userId', '==', userId)
+    .orderBy('cravedAt', 'desc')
+    .onSnapshot((snapshot: any) => {
+      const data = snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() } as Craving));
+      callback(data);
+    });
+};
+
+export const addCraving = async (craving: Omit<Craving, 'id' | 'userId'>, userId: string) => {
+  await db.collection('cravings').add({
+    ...craving,
+    userId,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  });
+};
+
+export const updateCravingOutcome = async (id: string, outcome: CravingOutcome) => {
+  await db.collection('cravings').doc(id).update({
+    outcome,
+    resolvedAt: new Date().toISOString()
+  });
+};
+
+export const deleteCraving = async (id: string) => {
+  await db.collection('cravings').doc(id).delete();
 };
 
 // ==================== WALLETS ====================
