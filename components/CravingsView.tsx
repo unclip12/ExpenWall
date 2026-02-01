@@ -21,10 +21,11 @@ export const CravingsView: React.FC<CravingsViewProps> = ({
 }) => {
   const [showCelebration, setShowCelebration] = useState<{ type: 'success' | 'failure'; amount: number } | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [showAddForm, setShowAddForm] = useState(false);
   const [newCraving, setNewCraving] = useState({
     platform: '',
     totalAmount: 0,
-    items: [] as { name: string; price: number; quantity: number }[],
+    items: [{ name: '', price: 0, quantity: 1 }] as { name: string; price: number; quantity: number }[],
     notes: ''
   });
 
@@ -115,6 +116,10 @@ export const CravingsView: React.FC<CravingsViewProps> = ({
   };
 
   const handleRemoveItem = (index: number) => {
+    if (newCraving.items.length === 1) {
+      alert('You must have at least one item!');
+      return;
+    }
     setNewCraving(prev => ({
       ...prev,
       items: prev.items.filter((_, i) => i !== index)
@@ -122,24 +127,39 @@ export const CravingsView: React.FC<CravingsViewProps> = ({
   };
 
   const handleSaveCraving = async () => {
-    const total = newCraving.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    // Validate that at least one item has a name and price
+    const validItems = newCraving.items.filter(item => item.name.trim() && item.price > 0);
     
-    await onAddCraving({
-      items: newCraving.items,
-      totalAmount: total,
-      platform: newCraving.platform,
-      outcome: 'pending',
-      notes: newCraving.notes,
-      cravedAt: new Date().toISOString()
-    });
+    if (validItems.length === 0) {
+      alert('Please add at least one item with a name and price!');
+      return;
+    }
 
-    // Reset form
-    setNewCraving({
-      platform: '',
-      totalAmount: 0,
-      items: [],
-      notes: ''
-    });
+    const total = validItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    
+    try {
+      await onAddCraving({
+        items: validItems,
+        totalAmount: total,
+        platform: newCraving.platform || 'Other',
+        outcome: 'pending',
+        notes: newCraving.notes,
+        cravedAt: new Date().toISOString()
+      });
+
+      // Reset form
+      setNewCraving({
+        platform: '',
+        totalAmount: 0,
+        items: [{ name: '', price: 0, quantity: 1 }],
+        notes: ''
+      });
+      setShowAddForm(false);
+      alert('Craving logged successfully!');
+    } catch (error) {
+      console.error('Failed to save craving:', error);
+      alert('Failed to save craving. Please try again.');
+    }
   };
 
   const handleMarkOutcome = async (cravingId: string, outcome: 'resisted' | 'gave_in', amount: number) => {
@@ -173,6 +193,12 @@ export const CravingsView: React.FC<CravingsViewProps> = ({
             </h2>
             <p className="text-purple-100 text-sm mt-1">Resist temptations, save money!</p>
           </div>
+          <button
+            onClick={() => setShowAddForm(!showAddForm)}
+            className="px-6 py-3 bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded-xl font-semibold transition-all"
+          >
+            {showAddForm ? 'Cancel' : '+ Log Craving'}
+          </button>
         </div>
 
         {/* Stats Grid */}
@@ -237,102 +263,124 @@ export const CravingsView: React.FC<CravingsViewProps> = ({
         </div>
       )}
 
-      {/* Add New Craving */}
-      <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700">
-        <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-4">Log New Craving</h3>
-        
-        {/* Screenshot Upload */}
-        <div className="mb-4">
-          <label className="block w-full">
-            <div className="border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-2xl p-6 text-center hover:border-indigo-400 dark:hover:border-indigo-500 transition-colors cursor-pointer">
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleImageUpload}
-                className="hidden"
-              />
-              <ImageIcon className="w-12 h-12 mx-auto mb-2 text-slate-400" />
-              <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Upload Cart Screenshot</p>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">AI will extract items (coming soon)</p>
-            </div>
-          </label>
-        </div>
-
-        {/* Manual Entry */}
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Platform</label>
-              <select
-                value={newCraving.platform}
-                onChange={(e) => setNewCraving(prev => ({ ...prev, platform: e.target.value }))}
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 dark:text-white focus:ring-2 focus:ring-purple-500 outline-none"
-              >
-                <option value="">Select platform...</option>
-                <option value="Zepto">Zepto</option>
-                <option value="Swiggy">Swiggy</option>
-                <option value="Zomato">Zomato</option>
-                <option value="Blinkit">Blinkit</option>
-                <option value="Dunzo">Dunzo</option>
-                <option value="Other">Other</option>
-              </select>
-            </div>
+      {/* Add New Craving Form */}
+      {showAddForm && (
+        <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700">
+          <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-4">Log New Craving</h3>
+          
+          {/* Platform Selection */}
+          <div className="mb-4">
+            <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Platform (Optional)</label>
+            <select
+              value={newCraving.platform}
+              onChange={(e) => setNewCraving(prev => ({ ...prev, platform: e.target.value }))}
+              className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 dark:text-white focus:ring-2 focus:ring-purple-500 outline-none"
+            >
+              <option value="">Select platform...</option>
+              <option value="Zepto">Zepto</option>
+              <option value="Swiggy">Swiggy</option>
+              <option value="Zomato">Zomato</option>
+              <option value="Blinkit">Blinkit</option>
+              <option value="Dunzo">Dunzo</option>
+              <option value="Other">Other</option>
+            </select>
           </div>
 
           {/* Items */}
-          <div>
+          <div className="mb-4">
             <div className="flex items-center justify-between mb-3">
-              <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Items</label>
+              <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Craving Items *</label>
               <button
                 onClick={handleAddItem}
                 className="px-3 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-lg text-sm font-medium hover:bg-purple-200 dark:hover:bg-purple-900/50 transition-colors"
               >
-                + Add Item
+                + Add Another Item
               </button>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-3">
               {newCraving.items.map((item, idx) => (
-                <div key={idx} className="grid grid-cols-12 gap-2 items-center p-3 bg-slate-50 dark:bg-slate-700 rounded-xl">
-                  <input
-                    type="text"
-                    placeholder="Item name"
-                    value={item.name}
-                    onChange={(e) => handleUpdateItem(idx, 'name', e.target.value)}
-                    className="col-span-5 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 dark:text-white text-sm outline-none"
-                  />
-                  <input
-                    type="number"
-                    placeholder="Qty"
-                    value={item.quantity}
-                    onChange={(e) => handleUpdateItem(idx, 'quantity', parseInt(e.target.value) || 1)}
-                    className="col-span-2 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 dark:text-white text-sm outline-none"
-                  />
-                  <input
-                    type="number"
-                    placeholder="Price"
-                    value={item.price}
-                    onChange={(e) => handleUpdateItem(idx, 'price', parseFloat(e.target.value) || 0)}
-                    className="col-span-4 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 dark:text-white text-sm outline-none"
-                  />
-                  <button
-                    onClick={() => handleRemoveItem(idx)}
-                    className="col-span-1 p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg text-red-500"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                <div key={idx} className="p-4 bg-slate-50 dark:bg-slate-700 rounded-xl space-y-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-semibold text-slate-600 dark:text-slate-400">Item #{idx + 1}</span>
+                    {newCraving.items.length > 1 && (
+                      <button
+                        onClick={() => handleRemoveItem(idx)}
+                        className="p-1 hover:bg-red-100 dark:hover:bg-red-900/20 rounded text-red-500 transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                  
+                  {/* Item Name */}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Item Name *</label>
+                    <input
+                      type="text"
+                      placeholder="e.g., Biryani, Chips, Ice Cream"
+                      value={item.name}
+                      onChange={(e) => handleUpdateItem(idx, 'name', e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 dark:text-white text-sm outline-none focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    {/* Quantity */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Quantity</label>
+                      <input
+                        type="number"
+                        min="1"
+                        placeholder="1"
+                        value={item.quantity}
+                        onChange={(e) => handleUpdateItem(idx, 'quantity', parseInt(e.target.value) || 1)}
+                        className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 dark:text-white text-sm outline-none focus:ring-2 focus:ring-purple-500"
+                      />
+                    </div>
+
+                    {/* Price */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Price (₹) *</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="0"
+                        value={item.price || ''}
+                        onChange={(e) => handleUpdateItem(idx, 'price', parseFloat(e.target.value) || 0)}
+                        className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 dark:text-white text-sm outline-none focus:ring-2 focus:ring-purple-500"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Item Total */}
+                  <div className="text-right">
+                    <span className="text-xs text-slate-500 dark:text-slate-400">Item Total: </span>
+                    <span className="font-bold text-slate-800 dark:text-white">₹{(item.price * item.quantity).toFixed(2)}</span>
+                  </div>
                 </div>
               ))}
+            </div>
+
+            {/* Grand Total */}
+            <div className="mt-4 p-4 bg-purple-50 dark:bg-purple-900/20 rounded-xl border border-purple-200 dark:border-purple-800">
+              <div className="flex items-center justify-between">
+                <span className="text-lg font-bold text-purple-900 dark:text-purple-300">Total Amount:</span>
+                <span className="text-2xl font-black text-purple-600 dark:text-purple-400">
+                  ₹{newCraving.items.reduce((sum, item) => sum + (item.price * item.quantity), 0).toFixed(2)}
+                </span>
+              </div>
             </div>
           </div>
 
           {/* Notes */}
-          <div>
+          <div className="mb-4">
             <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Notes (Optional)</label>
             <textarea
               value={newCraving.notes}
               onChange={(e) => setNewCraving(prev => ({ ...prev, notes: e.target.value }))}
-              placeholder="Why are you craving this?"
+              placeholder="Why are you craving this? How are you feeling?"
               rows={2}
               className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 dark:text-white focus:ring-2 focus:ring-purple-500 outline-none resize-none"
             />
@@ -340,13 +388,12 @@ export const CravingsView: React.FC<CravingsViewProps> = ({
 
           <button
             onClick={handleSaveCraving}
-            disabled={newCraving.items.length === 0}
-            className="w-full py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold rounded-xl hover:from-purple-700 hover:to-pink-700 disabled:opacity-50 transition-all"
+            className="w-full py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold rounded-xl hover:from-purple-700 hover:to-pink-700 transition-all shadow-lg"
           >
             Log Craving
           </button>
         </div>
-      </div>
+      )}
 
       {/* Cravings List by Date */}
       <div className="space-y-4">
