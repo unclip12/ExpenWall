@@ -1,6 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import App from './src/App';
+import App from './App';
 
 // Global Error Handler for "White Screen of Death"
 // This ensures that if the app crashes before React mounts, you see the error on screen.
