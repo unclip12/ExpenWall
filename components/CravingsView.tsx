@@ -22,6 +22,7 @@ export const CravingsView: React.FC<CravingsViewProps> = ({
   const [showCelebration, setShowCelebration] = useState<{ type: 'success' | 'failure'; amount: number } | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [newCraving, setNewCraving] = useState({
     platform: '',
     totalAmount: 0,
@@ -137,7 +138,12 @@ export const CravingsView: React.FC<CravingsViewProps> = ({
 
     const total = validItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     
+    setSaving(true);
     try {
+      console.log('Saving craving with items:', validItems);
+      console.log('Total amount:', total);
+      console.log('User ID:', userId);
+      
       await onAddCraving({
         items: validItems,
         totalAmount: total,
@@ -147,6 +153,8 @@ export const CravingsView: React.FC<CravingsViewProps> = ({
         cravedAt: new Date().toISOString()
       });
 
+      console.log('Craving saved successfully!');
+      
       // Reset form
       setNewCraving({
         platform: '',
@@ -155,10 +163,13 @@ export const CravingsView: React.FC<CravingsViewProps> = ({
         notes: ''
       });
       setShowAddForm(false);
-      alert('Craving logged successfully!');
-    } catch (error) {
+      alert('🎉 Craving logged successfully! Mark it as resisted or gave in later.');
+    } catch (error: any) {
       console.error('Failed to save craving:', error);
-      alert('Failed to save craving. Please try again.');
+      console.error('Error details:', error.message, error.code);
+      alert(`Failed to save craving: ${error.message || 'Unknown error'}. Please check the console for details.`);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -388,9 +399,10 @@ export const CravingsView: React.FC<CravingsViewProps> = ({
 
           <button
             onClick={handleSaveCraving}
-            className="w-full py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold rounded-xl hover:from-purple-700 hover:to-pink-700 transition-all shadow-lg"
+            disabled={saving}
+            className="w-full py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold rounded-xl hover:from-purple-700 hover:to-pink-700 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Log Craving
+            {saving ? 'Saving...' : 'Log Craving'}
           </button>
         </div>
       )}
