@@ -1,209 +1,252 @@
-import { db } from "../firebase";
-import { Transaction, UserProfile, BuyingItem, MerchantRule, Wallet } from "../types";
-import firebase from "firebase/compat/app";
+import { db } from '../firebase';
+import firebase from 'firebase/compat/app';
+import { Transaction, BuyingItem, MerchantRule, Wallet, UserProfile, RecurringTransaction, Budget } from '../types';
 
-const COLLECTIONS = {
-  TRANSACTIONS: "transactions",
-  BUYING_LIST: "buying_list",
-  USERS: "users",
-  RULES: "merchant_rules",
-  WALLETS: "wallets",
-} as const;
+// ==================== TRANSACTIONS ====================
 
-// --- Transactions ---
-
-export const subscribeToTransactions = (userId: string, onUpdate: (data: Transaction[]) => void): () => void => {
-  if (!db) {
-    console.warn("Firestore is not initialized");
-    return () => {};
-  }
-
-  return db.collection(COLLECTIONS.TRANSACTIONS)
-    .where("userId", "==", userId)
-    .orderBy("date", "desc")
-    .onSnapshot(
-      (snapshot) => {
-        const transactions = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        })) as Transaction[];
-        onUpdate(transactions);
-      },
-      (error) => console.error("Error fetching transactions:", error)
-    );
+export const subscribeToTransactions = (
+  userId: string,
+  callback: (transactions: Transaction[]) => void
+): (() => void) => {
+  return db
+    .collection('transactions')
+    .where('userId', '==', userId)
+    .onSnapshot((snapshot) => {
+      const transactions: Transaction[] = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as Transaction[];
+      callback(transactions);
+    });
 };
 
-export const addTransactionToDb = async (transaction: Omit<Transaction, "id">, userId: string): Promise<void> => {
-  if (!db) throw new Error("Firestore not initialized");
-  if (!userId) throw new Error("User ID is required");
-
-  await db.collection(COLLECTIONS.TRANSACTIONS).add({
+export const addTransactionToDb = async (transaction: Omit<Transaction, 'id'>, userId: string) => {
+  await db.collection('transactions').add({
     ...transaction,
     userId,
-    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
   });
 };
 
-export const addTransactionsBatch = async (transactions: Omit<Transaction, "id">[], userId: string): Promise<void> => {
-  if (!db) throw new Error("Firestore not initialized");
-  if (!userId) throw new Error("User ID is required");
-
+export const addTransactionsBatch = async (transactions: Omit<Transaction, 'id'>[], userId: string) => {
   const batch = db.batch();
-  transactions.forEach(transaction => {
-    const docRef = db.collection(COLLECTIONS.TRANSACTIONS).doc();
-    batch.set(docRef, {
-      ...transaction,
+  transactions.forEach((tx) => {
+    const ref = db.collection('transactions').doc();
+    batch.set(ref, {
+      ...tx,
       userId,
-      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
     });
   });
   await batch.commit();
 };
 
-export const updateTransactionInDb = async (transactionId: string, updates: Partial<Transaction>): Promise<void> => {
-  if (!db) throw new Error("Firestore not initialized");
-  await db.collection(COLLECTIONS.TRANSACTIONS).doc(transactionId).update(updates);
-};
-
-export const deleteTransactionFromDb = async (transactionId: string): Promise<void> => {
-  if (!db) throw new Error("Firestore not initialized");
-  await db.collection(COLLECTIONS.TRANSACTIONS).doc(transactionId).delete();
-};
-
-// --- Wallets ---
-
-export const subscribeToWallets = (userId: string, onUpdate: (data: Wallet[]) => void): () => void => {
-  if (!db) return () => {};
-  return db.collection(COLLECTIONS.WALLETS)
-    .where("userId", "==", userId)
-    .onSnapshot(
-      (snapshot) => {
-        const wallets = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        })) as Wallet[];
-        onUpdate(wallets);
-      },
-      (err) => console.error("Wallet fetch error:", err)
-    );
-};
-
-export const addWalletToDb = async (wallet: Omit<Wallet, "id">, userId: string): Promise<void> => {
-  if (!db) throw new Error("Firestore not initialized");
-  await db.collection(COLLECTIONS.WALLETS).add({
-    ...wallet,
-    userId,
-    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+export const updateTransactionInDb = async (id: string, updates: Partial<Transaction>) => {
+  await db.collection('transactions').doc(id).update({
+    ...updates,
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
   });
 };
 
-export const deleteWalletFromDb = async (walletId: string): Promise<void> => {
-  if (!db) throw new Error("Firestore not initialized");
-  await db.collection(COLLECTIONS.WALLETS).doc(walletId).delete();
+export const deleteTransactionFromDb = async (id: string) => {
+  await db.collection('transactions').doc(id).delete();
 };
 
-// --- Buying List ---
+// ==================== RECURRING TRANSACTIONS ====================
 
-export const subscribeToBuyingList = (userId: string, onUpdate: (data: BuyingItem[]) => void): () => void => {
-  if (!db) return () => {};
-
-  return db.collection(COLLECTIONS.BUYING_LIST)
-    .where("userId", "==", userId)
-    .onSnapshot(
-      (snapshot) => {
-        const items = snapshot.docs.map(doc => {
-          const data = doc.data();
-          return {
-            id: doc.id,
-            ...data,
-            isBought: data.isBought ?? false,
-            estimatedPrice: data.estimatedPrice ?? 0,
-            name: data.name ?? 'Unknown Item'
-          };
-        }) as BuyingItem[];
-
-        // Sort: unbought first, then by createdAt descending
-        items.sort((a, b) => {
-          if (a.isBought !== b.isBought) return a.isBought ? 1 : -1;
-          const getMillis = (t: any): number => {
-            if (!t) return Date.now() + 1000;
-            if (typeof t.toMillis === 'function') return t.toMillis();
-            if (typeof t.seconds === 'number') return t.seconds * 1000;
-            return 0;
-          };
-          return getMillis(b.createdAt) - getMillis(a.createdAt);
-        });
-
-        onUpdate(items);
-      },
-      (error) => console.error("Error fetching buying list:", error)
-    );
+export const subscribeToRecurringTransactions = (
+  userId: string,
+  callback: (recurring: RecurringTransaction[]) => void
+): (() => void) => {
+  return db
+    .collection('recurring_transactions')
+    .where('userId', '==', userId)
+    .onSnapshot((snapshot) => {
+      const recurring: RecurringTransaction[] = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as RecurringTransaction[];
+      callback(recurring);
+    });
 };
 
-export const addBuyingItem = async (item: Omit<BuyingItem, "id" | "userId">, userId: string): Promise<void> => {
-  if (!db) throw new Error("Firestore not initialized");
-  if (!userId) throw new Error("User ID is required");
+export const addRecurringTransaction = async (recurring: Omit<RecurringTransaction, 'id'>, userId: string) => {
+  await db.collection('recurring_transactions').add({
+    ...recurring,
+    userId,
+    isActive: true,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+  });
+};
 
-  await db.collection(COLLECTIONS.BUYING_LIST).add({
+export const updateRecurringTransaction = async (id: string, updates: Partial<RecurringTransaction>) => {
+  await db.collection('recurring_transactions').doc(id).update({
+    ...updates,
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+  });
+};
+
+export const deleteRecurringTransaction = async (id: string) => {
+  await db.collection('recurring_transactions').doc(id).delete();
+};
+
+export const toggleRecurringActive = async (id: string, isActive: boolean) => {
+  await db.collection('recurring_transactions').doc(id).update({ isActive });
+};
+
+// ==================== BUDGETS ====================
+
+export const subscribeToBudgets = (
+  userId: string,
+  callback: (budgets: Budget[]) => void
+): (() => void) => {
+  return db
+    .collection('budgets')
+    .where('userId', '==', userId)
+    .onSnapshot((snapshot) => {
+      const budgets: Budget[] = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as Budget[];
+      callback(budgets);
+    });
+};
+
+export const addBudget = async (budget: Omit<Budget, 'id'>, userId: string) => {
+  await db.collection('budgets').add({
+    ...budget,
+    userId,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+  });
+};
+
+export const updateBudget = async (id: string, updates: Partial<Budget>) => {
+  await db.collection('budgets').doc(id).update({
+    ...updates,
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+  });
+};
+
+export const deleteBudget = async (id: string) => {
+  await db.collection('budgets').doc(id).delete();
+};
+
+// ==================== BUYING LIST ====================
+
+export const subscribeToBuyingList = (
+  userId: string,
+  callback: (items: BuyingItem[]) => void
+): (() => void) => {
+  return db
+    .collection('buying_list')
+    .where('userId', '==', userId)
+    .onSnapshot((snapshot) => {
+      const items: BuyingItem[] = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as BuyingItem[];
+      callback(items);
+    });
+};
+
+export const addBuyingItem = async (item: Omit<BuyingItem, 'id'>, userId: string) => {
+  await db.collection('buying_list').add({
     ...item,
     userId,
-    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
   });
 };
 
-export const updateBuyingItemStatus = async (itemId: string, isBought: boolean): Promise<void> => {
-  if (!db) throw new Error("Firestore not initialized");
-  await db.collection(COLLECTIONS.BUYING_LIST).doc(itemId).update({ isBought });
+export const updateBuyingItemStatus = async (id: string, isBought: boolean) => {
+  await db.collection('buying_list').doc(id).update({ isBought });
 };
 
-export const deleteBuyingItem = async (itemId: string): Promise<void> => {
-  if (!db) throw new Error("Firestore not initialized");
-  await db.collection(COLLECTIONS.BUYING_LIST).doc(itemId).delete();
+export const deleteBuyingItem = async (id: string) => {
+  await db.collection('buying_list').doc(id).delete();
 };
 
-// --- User Profile ---
+// ==================== MERCHANT RULES ====================
 
-export const saveUserApiKey = async (userId: string, apiKey: string): Promise<void> => {
-  if (!db) throw new Error("Firestore not initialized");
-  await db.collection(COLLECTIONS.USERS).doc(userId).set({
-    apiKey,
-    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-  }, { merge: true });
+export const subscribeToRules = (
+  userId: string,
+  callback: (rules: MerchantRule[]) => void
+): (() => void) => {
+  return db
+    .collection('merchant_rules')
+    .where('userId', '==', userId)
+    .onSnapshot((snapshot) => {
+      const rules: MerchantRule[] = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as MerchantRule[];
+      callback(rules);
+    });
 };
+
+export const addMerchantRule = async (rule: Omit<MerchantRule, 'id'>) => {
+  await db.collection('merchant_rules').add({
+    ...rule,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+  });
+};
+
+export const deleteMerchantRule = async (id: string) => {
+  await db.collection('merchant_rules').doc(id).delete();
+};
+
+// ==================== WALLETS ====================
+
+export const subscribeToWallets = (
+  userId: string,
+  callback: (wallets: Wallet[]) => void
+): (() => void) => {
+  return db
+    .collection('wallets')
+    .where('userId', '==', userId)
+    .onSnapshot((snapshot) => {
+      const wallets: Wallet[] = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as Wallet[];
+      callback(wallets);
+    });
+};
+
+export const addWalletToDb = async (wallet: Omit<Wallet, 'id'>, userId: string) => {
+  await db.collection('wallets').add({
+    ...wallet,
+    userId,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+  });
+};
+
+export const deleteWalletFromDb = async (id: string) => {
+  await db.collection('wallets').doc(id).delete();
+};
+
+// ==================== USER PROFILE ====================
 
 export const getUserProfile = async (userId: string): Promise<UserProfile | null> => {
-  if (!db) return null;
-  const doc = await db.collection(COLLECTIONS.USERS).doc(userId).get();
+  const doc = await db.collection('users').doc(userId).get();
   return doc.exists ? (doc.data() as UserProfile) : null;
 };
 
-// --- Merchant Rules ---
-
-export const subscribeToRules = (userId: string, onUpdate: (rules: MerchantRule[]) => void): () => void => {
-  if (!db) return () => {};
-  return db.collection(COLLECTIONS.RULES)
-    .where("userId", "==", userId)
-    .onSnapshot(
-      (snapshot) => {
-        const rules = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        })) as MerchantRule[];
-        onUpdate(rules);
-      },
-      (err) => console.error("Rules fetch error:", err)
-    );
+export const saveUserApiKey = async (userId: string, apiKey: string) => {
+  await db.collection('users').doc(userId).set(
+    {
+      apiKey,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    },
+    { merge: true }
+  );
 };
 
-export const addMerchantRule = async (rule: Omit<MerchantRule, "id">): Promise<void> => {
-  if (!db) throw new Error("Firestore not initialized");
-  await db.collection(COLLECTIONS.RULES).add({
-    ...rule,
-    createdAt: firebase.firestore.FieldValue.serverTimestamp()
-  });
-};
-
-export const deleteMerchantRule = async (ruleId: string): Promise<void> => {
-  if (!db) throw new Error("Firestore not initialized");
-  await db.collection(COLLECTIONS.RULES).doc(ruleId).delete();
+export const saveUserTheme = async (userId: string, theme: string) => {
+  await db.collection('users').doc(userId).set(
+    {
+      theme,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    },
+    { merge: true }
+  );
 };

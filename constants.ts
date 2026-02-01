@@ -1,14 +1,18 @@
-import { Category } from './types';
-import { LayoutDashboard, PlusCircle, Receipt, Settings, ShoppingCart, Bot, Sparkles } from 'lucide-react';
+import { Category, ThemeMode } from './types';
+import { LayoutDashboard, PlusCircle, Receipt, Settings, ShoppingCart, Bot, Sparkles, TrendingUp, RefreshCw, Target, FileText } from 'lucide-react';
 
 export const CATEGORIES = Object.values(Category);
 
 export const NAV_ITEMS = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'transactions', label: 'Transactions', icon: Receipt },
+  { id: 'analytics', label: 'Analytics', icon: TrendingUp },
+  { id: 'budgets', label: 'Budgets', icon: Target },
+  { id: 'recurring', label: 'Recurring', icon: RefreshCw },
   { id: 'add', label: 'Add New', icon: PlusCircle },
   { id: 'analyzer', label: 'Analyzer', icon: Bot },
   { id: 'buying-list', label: 'Buying List', icon: ShoppingCart },
+  { id: 'export', label: 'Export', icon: FileText },
   { id: 'rules', label: 'Smart Rules', icon: Sparkles },
   { id: 'settings', label: 'Settings', icon: Settings },
 ];
@@ -53,4 +57,30 @@ export const CURRENCIES = [
   { code: 'TWD', symbol: 'NT$', name: 'New Taiwan Dollar', flag: '🇹🇼' },
   { code: 'VND', symbol: '₫', name: 'Vietnamese Đồng', flag: '🇻🇳' },
   { code: 'ZAR', symbol: 'R', name: 'South African Rand', flag: '🇿🇦' }
+];
+
+export const DATE_RANGE_PRESETS = [
+  { id: 'week', label: 'This Week', days: 7 },
+  { id: 'month', label: 'This Month', days: 30 },
+  { id: '3months', label: 'Last 3 Months', days: 90 },
+  { id: 'year', label: 'This Year', days: 365 },
+  { id: 'custom', label: 'Custom Range', days: 0 },
+];
+
+export const RECURRING_FREQUENCIES = [
+  { value: 'daily', label: 'Daily' },
+  { value: 'weekly', label: 'Weekly' },
+  { value: 'monthly', label: 'Monthly' },
+  { value: 'yearly', label: 'Yearly' },
+];
+
+export const TAG_COLORS = [
+  '#6366f1', '#10b981', '#f59e0b', '#ef4444', 
+  '#8b5cf6', '#ec4899', '#06b6d4', '#64748b'
+];
+
+export const THEME_OPTIONS: { value: ThemeMode; label: string }[] = [
+  { value: 'light', label: 'Light' },
+  { value: 'dark', label: 'Dark' },
+  { value: 'system', label: 'System' },
 ];

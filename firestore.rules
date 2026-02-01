@@ -2,7 +2,6 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Helper: check if user is authenticated and matches the userId field
     function isOwner(userId) {
       return request.auth != null && request.auth.uid == userId;
     }
@@ -12,6 +11,26 @@ service cloud.firestore {
       allow read: if isOwner(resource.data.userId);
       allow create: if isOwner(request.resource.data.userId)
                      && request.resource.data.keys().hasAll(['userId', 'merchant', 'amount', 'date', 'category', 'type', 'currency']);
+      allow update: if isOwner(resource.data.userId)
+                     && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['userId']);
+      allow delete: if isOwner(resource.data.userId);
+    }
+
+    // --- Recurring Transactions ---
+    match /recurring_transactions/{recurringId} {
+      allow read: if isOwner(resource.data.userId);
+      allow create: if isOwner(request.resource.data.userId)
+                     && request.resource.data.keys().hasAll(['userId', 'merchant', 'amount', 'category', 'type', 'frequency', 'startDate']);
+      allow update: if isOwner(resource.data.userId)
+                     && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['userId']);
+      allow delete: if isOwner(resource.data.userId);
+    }
+
+    // --- Budgets ---
+    match /budgets/{budgetId} {
+      allow read: if isOwner(resource.data.userId);
+      allow create: if isOwner(request.resource.data.userId)
+                     && request.resource.data.keys().hasAll(['userId', 'category', 'amount', 'period']);
       allow update: if isOwner(resource.data.userId)
                      && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['userId']);
       allow delete: if isOwner(resource.data.userId);

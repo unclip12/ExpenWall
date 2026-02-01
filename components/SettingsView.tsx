@@ -1,354 +1,280 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { CheckCircle, AlertCircle, Globe, ChevronDown, Check, Search, Key, ExternalLink, Loader2, Wallet, Plus, Trash2, CreditCard, Banknote, Smartphone, Cpu, ShieldCheck } from 'lucide-react';
-import { CURRENCIES, DEFAULT_CURRENCY } from '../constants';
-import { saveUserApiKey, addWalletToDb, deleteWalletFromDb, subscribeToWallets } from '../services/firestoreService';
-import { Wallet as WalletType } from '../types';
-import { GEMINI_MODEL } from '../services/geminiService';
+import React, { useState, useEffect } from 'react';
+import { Settings, Key, Globe, Palette, Moon, Sun, Monitor, Save, Trash2, Plus, Loader2 } from 'lucide-react';
+import { CURRENCIES, DEFAULT_CURRENCY, THEME_OPTIONS } from '../constants';
+import { getUserProfile, saveUserApiKey, saveUserTheme, subscribeToWallets, addWalletToDb, deleteWalletFromDb } from '../services/firestoreService';
+import { Wallet, WalletType } from '../types';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface SettingsViewProps {
+  userId: string;
+  onApiKeyChange: (key: string) => void;
+  // Props from previous version compatibility (if needed)
   currentApiKey?: string;
   onApiKeyUpdate?: (key: string) => void;
-  userId?: string;
 }
 
-export const SettingsView: React.FC<SettingsViewProps> = ({ currentApiKey = '', onApiKeyUpdate, userId }) => {
-  const [currencyCode, setCurrencyCode] = useState(DEFAULT_CURRENCY);
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-
-  // API Key State
-  const [apiKeyInput, setApiKeyInput] = useState(currentApiKey);
-  const [isSavingKey, setIsSavingKey] = useState(false);
-
-  // Wallet State
-  const [wallets, setWallets] = useState<WalletType[]>([]);
-  const [newWalletName, setNewWalletName] = useState('');
-  const [newWalletType, setNewWalletType] = useState<WalletType['type']>('bank');
+export const SettingsView: React.FC<SettingsViewProps> = ({ userId, onApiKeyChange, currentApiKey, onApiKeyUpdate }) => {
+  const { theme, setTheme } = useTheme();
+  const [apiKey, setApiKey] = useState(currentApiKey || '');
+  const [currency, setCurrency] = useState(DEFAULT_CURRENCY);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [wallets, setWallets] = useState<Wallet[]>([]);
+  const [newWallet, setNewWallet] = useState({ name: '', type: 'bank' as WalletType });
   const [isAddingWallet, setIsAddingWallet] = useState(false);
-  const [deletingWalletId, setDeletingWalletId] = useState<string | null>(null);
-
-  // Currency Dropdown
-  const [isCurrencyListOpen, setIsCurrencyListOpen] = useState(false);
-  const [currencySearch, setCurrencySearch] = useState('');
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  // Separate effects for clarity and correct cleanup
-  useEffect(() => {
-    const saved = localStorage.getItem('expenwall_currency');
-    if (saved) setCurrencyCode(saved);
-  }, []);
 
   useEffect(() => {
-    if (currentApiKey) setApiKeyInput(currentApiKey);
-  }, [currentApiKey]);
-
-  useEffect(() => {
-    if (!userId) return;
+    loadSettings();
     const unsub = subscribeToWallets(userId, setWallets);
     return () => unsub();
   }, [userId]);
 
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsCurrencyListOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  const showMessage = (type: 'success' | 'error', text: string) => {
-    setMessage({ type, text });
-    setTimeout(() => setMessage(null), 3000);
+  const loadSettings = async () => {
+    const profile = await getUserProfile(userId);
+    if (profile?.apiKey) {
+      setApiKey(profile.apiKey);
+      onApiKeyChange(profile.apiKey);
+      if (onApiKeyUpdate) onApiKeyUpdate(profile.apiKey);
+    }
+    
+    const savedCurrency = localStorage.getItem('expenwall_currency');
+    if (savedCurrency) setCurrency(savedCurrency);
   };
 
   const handleSaveApiKey = async () => {
-    if (!userId) return;
-    setIsSavingKey(true);
+    setIsSaving(true);
+    setSaveSuccess(false);
     try {
-      const cleanedKey = apiKeyInput.trim();
-      await saveUserApiKey(userId, cleanedKey);
-      onApiKeyUpdate?.(cleanedKey);
-      showMessage('success', 'API Key saved successfully!');
-    } catch {
-      showMessage('error', 'Failed to save API Key.');
+      await saveUserApiKey(userId, apiKey);
+      onApiKeyChange(apiKey);
+      if (onApiKeyUpdate) onApiKeyUpdate(apiKey);
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 2000);
+    } catch (error) {
+      console.error('Failed to save API key:', error);
+      alert('Failed to save API key');
     } finally {
-      setIsSavingKey(false);
+      setIsSaving(false);
     }
+  };
+
+  const handleSaveCurrency = () => {
+    localStorage.setItem('expenwall_currency', currency);
+    setSaveSuccess(true);
+    setTimeout(() => setSaveSuccess(false), 2000);
+  };
+
+  const handleThemeChange = async (newTheme: string) => {
+    setTheme(newTheme as any);
+    await saveUserTheme(userId, newTheme);
   };
 
   const handleAddWallet = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!userId || !newWalletName.trim()) return;
+    if (!newWallet.name.trim()) return;
+
     setIsAddingWallet(true);
     try {
-      await addWalletToDb({ name: newWalletName.trim(), type: newWalletType, userId }, userId);
-      setNewWalletName('');
-      showMessage('success', 'Wallet added!');
-    } catch {
-      showMessage('error', 'Failed to add wallet.');
+      await addWalletToDb(newWallet, userId);
+      setNewWallet({ name: '', type: 'bank' });
+    } catch (error) {
+      console.error('Failed to add wallet:', error);
     } finally {
       setIsAddingWallet(false);
     }
   };
 
   const handleDeleteWallet = async (id: string) => {
-    if (!confirm('Delete this wallet? Linked transactions will remain but lose the wallet reference.')) return;
-    setDeletingWalletId(id);
-    try {
-      await deleteWalletFromDb(id);
-    } catch {
-      showMessage('error', 'Failed to delete wallet.');
-    } finally {
-      setDeletingWalletId(null);
-    }
-  };
-
-  const selectedCurrency = CURRENCIES.find(c => c.code === currencyCode) || CURRENCIES[0];
-  const filteredCurrencies = CURRENCIES.filter(c =>
-    c.name.toLowerCase().includes(currencySearch.toLowerCase()) ||
-    c.code.toLowerCase().includes(currencySearch.toLowerCase())
-  );
-
-  const getWalletIcon = (type: string) => {
-    switch (type) {
-      case 'cash': return <Banknote className="w-5 h-5 text-emerald-500" />;
-      case 'credit': return <CreditCard className="w-5 h-5 text-purple-500" />;
-      case 'digital': return <Smartphone className="w-5 h-5 text-blue-500" />;
-      default: return <Wallet className="w-5 h-5 text-indigo-500" />;
-    }
+    if (!confirm('Delete this wallet?')) return;
+    await deleteWalletFromDb(id);
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
-      {/* Toast Notification */}
-      {message && (
-        <div className={`fixed top-4 right-4 z-50 flex items-center p-4 rounded-xl shadow-lg border backdrop-blur-xl ${
-          message.type === 'success'
-            ? 'bg-emerald-50/90 border-emerald-100 text-emerald-800'
-            : 'bg-red-50/90 border-red-100 text-red-800'
-        }`}>
-          {message.type === 'success' ? <CheckCircle className="w-5 h-5 mr-3" /> : <AlertCircle className="w-5 h-5 mr-3" />}
-          <span className="font-medium">{message.text}</span>
+    <div className="space-y-6 animate-in fade-in duration-500">
+      {/* Header */}
+      <div className="bg-gradient-to-r from-slate-700 to-slate-900 p-8 rounded-3xl shadow-xl text-white">
+        <div className="flex items-center space-x-4">
+          <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-sm">
+            <Settings className="w-8 h-8 text-white" />
+          </div>
+          <div>
+            <h2 className="text-3xl font-bold">Settings</h2>
+            <p className="text-slate-300">Customize your experience</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Success Message */}
+      {saveSuccess && (
+        <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 p-4 rounded-2xl flex items-center space-x-2 animate-in slide-in-from-top duration-300">
+          <Save className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+          <span className="text-emerald-700 dark:text-emerald-300 font-semibold">Settings saved successfully!</span>
         </div>
       )}
 
-      {/* Wallet Management */}
-      <div className="bg-white/70 backdrop-blur-xl p-6 rounded-3xl shadow-xl border border-white/20">
-        <div className="flex items-center space-x-3 mb-6">
-          <div className="p-3 bg-indigo-100/50 rounded-2xl text-indigo-600">
-            <Wallet className="w-6 h-6" />
-          </div>
-          <div>
-            <h2 className="text-xl font-bold text-slate-800">My Wallets</h2>
-            <p className="text-sm text-slate-500">Manage sources of funds</p>
-          </div>
+      {/* Theme Settings */}
+      <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-lg border border-slate-100 dark:border-slate-700">
+        <div className="flex items-center space-x-3 mb-4">
+          <Palette className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+          <h3 className="text-lg font-bold text-slate-800 dark:text-white">Appearance</h3>
         </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {/* Add New */}
-          <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">Add New Wallet</h3>
-            <form onSubmit={handleAddWallet} className="space-y-3">
-              <input
-                type="text"
-                placeholder="Wallet Name (e.g. HDFC Credit)"
-                value={newWalletName}
-                onChange={e => setNewWalletName(e.target.value)}
-                className="w-full px-4 py-3 bg-white/50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-              />
-              <div className="flex gap-2">
-                {(['bank', 'cash', 'credit', 'digital'] as const).map((type) => (
-                  <button
-                    type="button"
-                    key={type}
-                    onClick={() => setNewWalletType(type)}
-                    className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase transition-all ${
-                      newWalletType === type
-                        ? 'bg-indigo-600 text-white shadow-md scale-105'
-                        : 'bg-white/50 text-slate-500 hover:bg-white'
-                    }`}
-                  >
-                    {type}
-                  </button>
-                ))}
-              </div>
-              <button
-                type="submit"
-                disabled={!newWalletName.trim() || isAddingWallet}
-                className="w-full py-3 bg-slate-900 text-white rounded-xl font-medium hover:bg-slate-800 transition-all flex items-center justify-center disabled:opacity-50 shadow-lg shadow-slate-200"
-              >
-                {isAddingWallet
-                  ? <Loader2 className="w-5 h-5 animate-spin" />
-                  : <span className="flex items-center"><Plus className="w-5 h-5 mr-2" />Create Wallet</span>
-                }
-              </button>
-            </form>
-          </div>
-
-          {/* Wallet List */}
-          <div className="space-y-3">
-            <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">Your Wallets</h3>
-            {wallets.length === 0 ? (
-              <div className="text-center p-6 text-slate-400 bg-slate-50/50 rounded-xl border border-dashed border-slate-200">
-                No wallets added yet.
-              </div>
-            ) : (
-              <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2">
-                {wallets.map(wallet => (
-                  <div key={wallet.id} className="flex items-center justify-between p-3 bg-white/60 rounded-xl border border-white/40 shadow-sm hover:shadow-md transition-all group">
-                    <div className="flex items-center space-x-3">
-                      <div className="p-2 bg-white rounded-lg shadow-sm">
-                        {getWalletIcon(wallet.type)}
-                      </div>
-                      <div>
-                        <p className="font-bold text-slate-800 text-sm">{wallet.name}</p>
-                        <p className="text-[10px] uppercase text-slate-400 font-bold tracking-wider">{wallet.type}</p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => handleDeleteWallet(wallet.id)}
-                      disabled={deletingWalletId === wallet.id}
-                      className="p-2 text-slate-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100 disabled:opacity-50"
-                    >
-                      {deletingWalletId === wallet.id
-                        ? <Loader2 className="w-4 h-4 animate-spin" />
-                        : <Trash2 className="w-4 h-4" />
-                      }
-                    </button>
+        
+        <div className="space-y-4">
+          <div>
+            <label className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2 block">Theme Mode</label>
+            <div className="grid grid-cols-3 gap-3">
+              {THEME_OPTIONS.map(option => (
+                <button
+                  key={option.value}
+                  onClick={() => handleThemeChange(option.value)}
+                  className={`p-4 rounded-xl border-2 transition-all ${
+                    theme === option.value
+                      ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/30'
+                      : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
+                  }`}
+                >
+                  <div className="flex flex-col items-center space-y-2">
+                    {option.value === 'light' && <Sun className="w-6 h-6 text-slate-700 dark:text-slate-300" />}
+                    {option.value === 'dark' && <Moon className="w-6 h-6 text-slate-700 dark:text-slate-300" />}
+                    {option.value === 'system' && <Monitor className="w-6 h-6 text-slate-700 dark:text-slate-300" />}
+                    <span className="text-sm font-medium text-slate-800 dark:text-white">{option.label}</span>
                   </div>
-                ))}
-              </div>
-            )}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Preferences */}
-      <div className="bg-white/70 backdrop-blur-xl p-6 rounded-3xl shadow-xl border border-white/20">
-        <div className="flex items-center space-x-3 mb-6">
-          <div className="p-3 bg-indigo-100/50 rounded-2xl text-indigo-600">
-            <Globe className="w-6 h-6" />
-          </div>
-          <div>
-            <h2 className="text-xl font-bold text-slate-800">Preferences</h2>
-            <p className="text-sm text-slate-500">Currency & Defaults</p>
-          </div>
+      {/* Currency Settings */}
+      <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-lg border border-slate-100 dark:border-slate-700">
+        <div className="flex items-center space-x-3 mb-4">
+          <Globe className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+          <h3 className="text-lg font-bold text-slate-800 dark:text-white">Currency</h3>
         </div>
-
-        <div className="max-w-md relative" ref={dropdownRef}>
-          <label className="text-sm font-semibold text-slate-700 mb-2 block">Default Currency</label>
-          <button
-            type="button"
-            onClick={() => setIsCurrencyListOpen(!isCurrencyListOpen)}
-            className="w-full flex items-center justify-between p-4 bg-white/50 border border-slate-200 rounded-xl hover:border-indigo-500 transition-all text-left backdrop-blur-sm"
+        
+        <div className="space-y-4">
+          <select
+            value={currency}
+            onChange={(e) => setCurrency(e.target.value)}
+            className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
           >
-            <div className="flex items-center space-x-3">
-              <span className="text-2xl">{selectedCurrency.flag}</span>
-              <div>
-                <p className="font-bold text-slate-800">{selectedCurrency.name}</p>
-                <p className="text-xs text-slate-500">{selectedCurrency.code} ({selectedCurrency.symbol})</p>
-              </div>
-            </div>
-            <ChevronDown className={`w-5 h-5 text-slate-400 transition-transform ${isCurrencyListOpen ? 'rotate-180' : ''}`} />
+            {CURRENCIES.map(c => (
+              <option key={c.code} value={c.code}>
+                {c.flag} {c.name} ({c.symbol})
+              </option>
+            ))}
+          </select>
+          
+          <button
+            onClick={handleSaveCurrency}
+            className="w-full md:w-auto px-6 py-3 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 transition-all flex items-center justify-center space-x-2 shadow-lg"
+          >
+            <Save className="w-5 h-5" />
+            <span>Save Currency</span>
           </button>
-
-          {isCurrencyListOpen && (
-            <div className="absolute top-full left-0 right-0 mt-2 bg-white/90 backdrop-blur-xl border border-slate-200 rounded-xl shadow-2xl z-50 overflow-hidden flex flex-col">
-              <div className="p-3 border-b border-slate-100 bg-slate-50/80 sticky top-0">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                  <input
-                    type="text"
-                    autoFocus
-                    placeholder="Search currencies..."
-                    value={currencySearch}
-                    onChange={(e) => setCurrencySearch(e.target.value)}
-                    className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-500"
-                  />
-                </div>
-              </div>
-              <div className="max-h-64 overflow-y-auto">
-                {filteredCurrencies.map((c) => (
-                  <button
-                    key={c.code}
-                    onClick={() => {
-                      setCurrencyCode(c.code);
-                      localStorage.setItem('expenwall_currency', c.code);
-                      setIsCurrencyListOpen(false);
-                      setCurrencySearch('');
-                      showMessage('success', `Currency updated to ${c.code}`);
-                    }}
-                    className={`w-full flex items-center justify-between px-4 py-3 hover:bg-indigo-50/50 transition-colors ${currencyCode === c.code ? 'bg-indigo-50/80' : ''}`}
-                  >
-                    <div className="flex items-center space-x-3">
-                      <span className="text-xl">{c.flag}</span>
-                      <p className={`text-sm font-medium ${currencyCode === c.code ? 'text-indigo-700' : 'text-slate-700'}`}>{c.name}</p>
-                    </div>
-                    {currencyCode === c.code && <Check className="w-4 h-4 text-indigo-600" />}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       </div>
 
-      {/* API Key */}
-      <div className="bg-white/70 backdrop-blur-xl p-6 rounded-3xl shadow-xl border border-white/20">
-        <div className="flex items-center space-x-3 mb-6">
-          <div className="p-3 bg-indigo-100/50 rounded-2xl text-indigo-600">
-            <Key className="w-6 h-6" />
-          </div>
-          <div>
-            <h2 className="text-xl font-bold text-slate-800">AI Configuration</h2>
-            <p className="text-sm text-slate-500">Gemini API Key</p>
-          </div>
+      {/* API Key Settings */}
+      <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-lg border border-slate-100 dark:border-slate-700">
+        <div className="flex items-center space-x-3 mb-4">
+          <Key className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+          <h3 className="text-lg font-bold text-slate-800 dark:text-white">Gemini API Key</h3>
         </div>
-
-        <div className="max-w-2xl space-y-4">
-          <div className="bg-indigo-50/50 border border-indigo-100 p-4 rounded-xl space-y-3">
-             <div className="flex items-center gap-2">
-                <Cpu className="w-5 h-5 text-indigo-600" />
-                <span className="text-sm font-bold text-indigo-900">Current Model: {GEMINI_MODEL}</span>
-             </div>
-             <div className="flex items-start gap-2 text-xs text-indigo-700 bg-indigo-100/50 p-2 rounded-lg">
-                <ShieldCheck className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                <p>
-                  The API Key you paste below is used <b>only</b> to authenticate with Google Gemini for scanning receipts and analyzing transactions. 
-                  It is <b>not</b> used for Firebase or any other service.
-                </p>
-             </div>
-          </div>
-
-          <div className="bg-blue-50/50 border border-blue-100 p-4 rounded-xl">
+        
+        <div className="space-y-4">
+          <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-200 dark:border-blue-800">
+            <p className="text-sm text-blue-800 dark:text-blue-300 mb-2">
+              Required for AI-powered receipt scanning and natural language input.
+            </p>
             <a
               href="https://aistudio.google.com/app/apikey"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center text-sm font-bold text-blue-600 hover:text-blue-800 hover:underline"
+              className="text-sm font-bold text-blue-600 dark:text-blue-400 hover:underline"
             >
-              Get your free API Key here
-              <ExternalLink className="w-3 h-3 ml-1" />
+              Get your free API key →
             </a>
           </div>
 
-          <div className="flex space-x-3">
+          <input
+            type="password"
+            value={apiKey}
+            onChange={(e) => setApiKey(e.target.value)}
+            placeholder="Enter your Gemini API Key"
+            className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+          />
+
+          <button
+            onClick={handleSaveApiKey}
+            disabled={isSaving || !apiKey}
+            className="w-full md:w-auto px-6 py-3 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 disabled:opacity-50 transition-all flex items-center justify-center space-x-2 shadow-lg"
+          >
+            {isSaving ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              <Save className="w-5 h-5" />
+            )}
+            <span>Save API Key</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Wallet Management */}
+      <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-lg border border-slate-100 dark:border-slate-700">
+        <div className="flex items-center space-x-3 mb-4">
+          <Settings className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+          <h3 className="text-lg font-bold text-slate-800 dark:text-white">Wallets</h3>
+        </div>
+
+        <form onSubmit={handleAddWallet} className="space-y-4 mb-6">
+          <div className="flex gap-3">
             <input
-              type="password"
-              value={apiKeyInput}
-              onChange={(e) => setApiKeyInput(e.target.value)}
-              placeholder="Paste Key"
-              className="flex-1 px-4 py-3 bg-white/50 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+              type="text"
+              value={newWallet.name}
+              onChange={(e) => setNewWallet(prev => ({ ...prev, name: e.target.value }))}
+              placeholder="Wallet name"
+              className="flex-1 px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
             />
-            <button
-              onClick={handleSaveApiKey}
-              disabled={isSavingKey}
-              className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 disabled:opacity-50 transition-all shadow-lg shadow-indigo-200"
+            <select
+              value={newWallet.type}
+              onChange={(e) => setNewWallet(prev => ({ ...prev, type: e.target.value as WalletType }))}
+              className="px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
             >
-              {isSavingKey ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Save'}
+              <option value="bank">Bank</option>
+              <option value="cash">Cash</option>
+              <option value="credit">Credit Card</option>
+              <option value="digital">Digital Wallet</option>
+            </select>
+            <button
+              type="submit"
+              disabled={isAddingWallet}
+              className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 disabled:opacity-50 transition-all flex items-center space-x-2"
+            >
+              {isAddingWallet ? <Loader2 className="w-5 h-5 animate-spin" /> : <Plus className="w-5 h-5" />}
             </button>
           </div>
+        </form>
+
+        <div className="space-y-2">
+          {wallets.map(wallet => (
+            <div key={wallet.id} className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-700/50 rounded-xl">
+              <div>
+                <p className="font-bold text-slate-800 dark:text-white">{wallet.name}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 capitalize">{wallet.type}</p>
+              </div>
+              <button
+                onClick={() => handleDeleteWallet(wallet.id)}
+                className="p-2 text-slate-300 hover:text-red-500 dark:hover:text-red-400 transition-colors"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          ))}
+          {wallets.length === 0 && (
+            <p className="text-center text-slate-400 dark:text-slate-500 py-8">No wallets added yet.</p>
+          )}
         </div>
       </div>
     </div>

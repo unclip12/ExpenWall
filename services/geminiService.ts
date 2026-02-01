@@ -1,222 +1,262 @@
-import { GoogleGenAI, Type } from "@google/genai";
-import { ReceiptData, StatementData, DraftTransaction } from "../types";
+import { GoogleGenAI, Type } from '@google/genai';
+import { ReceiptData, StatementData, DraftTransaction } from '../types';
 
-// We export this so the UI can display exactly which model is being used.
-export const GEMINI_MODEL = 'gemini-2.0-flash';
+export const GEMINI_MODEL = 'gemini-2.0-flash-exp';
 
-/**
- * Creates a new GoogleGenAI instance.
- * This explicitly uses the user-provided apiKey, ensuring privacy and separate billing/quotas.
- */
-const createAI = (apiKey: string) => new GoogleGenAI({ apiKey });
-
-// ─── Receipt Processing ──────────────────────────────────────────────────────
-
-const processReceiptImage = async (
-  base64Image: string,
-  mimeType: string,
-  apiKey: string
-): Promise<ReceiptData> => {
-  if (!apiKey) throw new Error("API Key is missing. Please configure it in Settings.");
-
-  const ai = createAI(apiKey);
-  const currentYear = new Date().getFullYear();
-
-  const response = await ai.models.generateContent({
-    model: GEMINI_MODEL,
-    contents: {
-      parts: [
-        { inlineData: { mimeType, data: base64Image } },
-        {
-          text: `Analyze this receipt image and extract the transaction details.
-
-Context: The image might be a physical receipt, a digital order screen (e.g., Swiggy, Zomato, UberEats, Amazon), or a handwritten note.
-
-Requirements:
-1. Merchant: Identify the store or restaurant name.
-   - If the specific restaurant name is not visible, examine the UI (fonts, colors, layout).
-   - If it looks like a food delivery app, return the App Name (e.g., "Zomato Order", "Swiggy Order").
-   - Do not return "Unknown Merchant" unless absolutely no text or UI hints are present.
-2. Date: Extract the date. If the year is missing, assume ${currentYear}. Return in YYYY-MM-DD format.
-3. Total Amount: Extract the final total numeric value (e.g., 155.40). Ignore currency symbols.
-4. Currency: Detect currency. '₹', 'Rs', 'INR' -> 'INR'. '$', 'USD' -> 'USD'. Default to 'USD' if ambiguous.
-5. Category: Choose best fit: Food & Dining, Transportation, Utilities, Entertainment, Shopping, Health & Fitness, Groceries, Other.
-6. Items: List items with their names and prices.`
-        }
-      ]
-    },
-    config: {
-      systemInstruction: "You are an expert receipt parser. You can identify apps like Swiggy, Zomato, Uber, and Amazon based on their visual design. Extract structured financial data. Always return valid JSON only — no extra text or markdown fences.",
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.OBJECT,
-        properties: {
-          merchant: { type: Type.STRING },
-          date: { type: Type.STRING },
-          totalAmount: { type: Type.NUMBER },
-          currency: { type: Type.STRING },
-          category: { type: Type.STRING },
-          items: {
-            type: Type.ARRAY,
-            items: {
-              type: Type.OBJECT,
-              properties: {
-                name: { type: Type.STRING },
-                price: { type: Type.NUMBER }
-              },
-              required: ["name", "price"]
-            }
-          }
-        },
-        required: ["merchant", "totalAmount", "category", "items"]
-      }
-    }
-  });
-
-  if (!response.text) throw new Error("No text response from Gemini.");
-
-  const data = JSON.parse(response.text) as ReceiptData;
-  if (!data.merchant || data.merchant.trim() === '') {
-    data.merchant = "Unknown Merchant";
+class GeminiService {
+  private getAI(apiKey: string) {
+    return new GoogleGenAI({ apiKey });
   }
-  return data;
-};
 
-// ─── Bank Statement Analysis ─────────────────────────────────────────────────
+  /**
+   * Process a receipt image and extract transaction data
+   */
+  async processReceiptImage(
+    base64Data: string,
+    mimeType: string,
+    apiKey: string
+  ): Promise<ReceiptData> {
+    const ai = this.getAI(apiKey);
 
-const analyzeBankStatement = async (
-  base64Image: string,
-  mimeType: string,
-  apiKey: string,
-  historyContext?: string
-): Promise<StatementData> => {
-  if (!apiKey) throw new Error("API Key is missing.");
+    const prompt = `You are a receipt parser. Extract the following from this receipt image:
+- merchant: Store/business name
+- date: Date in YYYY-MM-DD format
+- totalAmount: Total amount as a number
+- currency: Currency code (e.g., INR, USD) or symbol
+- category: One of: Food & Dining, Transportation, Shopping, Entertainment, Health & Fitness, Groceries, Utilities, Other
+- items: Array of {name, price} for each line item`;
 
-  const ai = createAI(apiKey);
-  const currentYear = new Date().getFullYear();
-
-  const response = await ai.models.generateContent({
-    model: GEMINI_MODEL,
-    contents: {
-      parts: [
-        { inlineData: { mimeType, data: base64Image } },
-        {
-          text: `Extract all transactions from this bank statement or transaction history list.
-
-CRITICAL CLEANUP RULES:
-1. Merchant Name: Remove technical clutter.
-   - 'UPI/12345/Swiggy/...' -> 'Swiggy'
-   - 'POS/TERMINAL 1/STARBUCKS' -> 'Starbucks'
-   - 'AMZN Pay India Pvt' -> 'Amazon Pay'
-   - 'IDFC FAS' -> 'Fastag' (unless overridden by context)
-   - Remove dates or ref numbers from the name.
-
-2. Transaction Type:
-   - 'Cr', 'Credit', '+', Deposit/Income columns -> 'income'
-   - 'Dr', 'Debit', '-', Withdrawal/Spend columns -> 'expense'
-
-3. Category: Auto-categorize based on merchant name.
-   - Use HISTORY CONTEXT below to match user preferences.
-
-4. Date: Format YYYY-MM-DD. If year is missing, use ${currentYear}.`
-        }
-      ]
-    },
-    config: {
-      systemInstruction: `You are a specialised financial data extractor. Clean up messy bank transaction strings into human-readable merchant names.
-
-HISTORY CONTEXT (use this to learn user preferences):
-${historyContext || "No history available."}`,
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.OBJECT,
-        properties: {
-          transactions: {
-            type: Type.ARRAY,
+    const response = await ai.models.generateContent({
+      model: GEMINI_MODEL,
+      contents: {
+        parts: [
+          { inlineData: { mimeType, data: base64Data } },
+          { text: prompt }
+        ]
+      },
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            merchant: { type: Type.STRING },
+            date: { type: Type.STRING },
+            totalAmount: { type: Type.NUMBER },
+            currency: { type: Type.STRING },
+            category: { type: Type.STRING },
             items: {
-              type: Type.OBJECT,
-              properties: {
-                merchant: { type: Type.STRING },
-                date: { type: Type.STRING },
-                amount: { type: Type.NUMBER },
-                type: { type: Type.STRING, enum: ['expense', 'income'] },
-                category: { type: Type.STRING }
-              },
-              required: ["merchant", "amount", "type"]
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  name: { type: Type.STRING },
+                  price: { type: Type.NUMBER }
+                }
+              }
             }
           }
-        },
-        required: ["transactions"]
-      }
-    }
-  });
-
-  if (!response.text) throw new Error("No data returned.");
-  return JSON.parse(response.text) as StatementData;
-};
-
-// ─── Draft Refinement ────────────────────────────────────────────────────────
-
-const refineBankStatement = async (
-  currentDrafts: DraftTransaction[],
-  userInstruction: string,
-  apiKey: string
-): Promise<DraftTransaction[]> => {
-  if (!apiKey) throw new Error("API Key is missing.");
-
-  const ai = createAI(apiKey);
-
-  const response = await ai.models.generateContent({
-    model: GEMINI_MODEL,
-    contents: {
-      parts: [
-        {
-          text: `I have a list of extracted transactions. The user wants to correct or refine them.
-
-Current Data: ${JSON.stringify(currentDrafts)}
-
-User Instruction: "${userInstruction}"
-
-Apply the user's instruction to all relevant items and return the updated list.`
         }
-      ]
-    },
-    config: {
-      systemInstruction: "You are a financial data assistant. You take a JSON list of transactions and a user correction request, and you return the corrected JSON list. Return only the JSON — no extra text.",
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.OBJECT,
-        properties: {
-          transactions: {
-            type: Type.ARRAY,
-            items: {
-              type: Type.OBJECT,
-              properties: {
-                id: { type: Type.STRING },
-                merchant: { type: Type.STRING },
-                date: { type: Type.STRING },
-                amount: { type: Type.NUMBER },
-                type: { type: Type.STRING, enum: ['expense', 'income'] },
-                category: { type: Type.STRING }
-              },
-              required: ["merchant", "amount", "type"]
+      }
+    });
+
+    if (!response.text) throw new Error("No data returned from Gemini");
+    return JSON.parse(response.text);
+  }
+
+  /**
+   * Analyze bank statement image
+   */
+  async analyzeBankStatement(
+    base64Data: string,
+    mimeType: string,
+    apiKey: string,
+    historyContext: string = ''
+  ): Promise<StatementData> {
+    const ai = this.getAI(apiKey);
+
+    const prompt = `You are a bank statement analyzer. Extract ALL transactions from this image.
+
+${historyContext}
+
+For each transaction, determine:
+- merchant: Business/person name (clean and readable)
+- date: YYYY-MM-DD format
+- amount: Numeric value (positive)
+- type: "expense" or "income"
+- category: Food & Dining, Transportation, Shopping, Entertainment, Health & Fitness, Groceries, Utilities, Income, or Other`;
+
+    const response = await ai.models.generateContent({
+      model: GEMINI_MODEL,
+      contents: {
+        parts: [
+          { inlineData: { mimeType, data: base64Data } },
+          { text: prompt }
+        ]
+      },
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            transactions: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  merchant: { type: Type.STRING },
+                  date: { type: Type.STRING },
+                  amount: { type: Type.NUMBER },
+                  type: { type: Type.STRING, enum: ["expense", "income"] },
+                  category: { type: Type.STRING }
+                }
+              }
             }
           }
-        },
-        required: ["transactions"]
+        }
       }
-    }
-  });
+    });
 
-  if (!response.text) throw new Error("No refinement data returned.");
-  const data = JSON.parse(response.text) as StatementData;
-  return data.transactions as unknown as DraftTransaction[];
-};
+    if (!response.text) throw new Error("No data returned from Gemini");
+    return JSON.parse(response.text);
+  }
 
-// ─── Export ──────────────────────────────────────────────────────────────────
+  /**
+   * Refine draft transactions based on user feedback
+   */
+  async refineBankStatement(
+    drafts: DraftTransaction[],
+    userCorrection: string,
+    apiKey: string
+  ): Promise<DraftTransaction[]> {
+    const ai = this.getAI(apiKey);
 
-export const geminiService = {
-  processReceiptImage,
-  analyzeBankStatement,
-  refineBankStatement
-};
+    const prompt = `You are correcting transaction data. Here are the current drafts:
+
+${JSON.stringify(drafts, null, 2)}
+
+User says: "${userCorrection}"
+
+Apply the correction and return the UPDATED array in the same format. Keep all fields intact unless the user specifically mentions them.`;
+
+    const response = await ai.models.generateContent({
+      model: GEMINI_MODEL,
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.ARRAY,
+          items: {
+             type: Type.OBJECT,
+             properties: {
+               id: { type: Type.STRING },
+               merchant: { type: Type.STRING },
+               date: { type: Type.STRING },
+               amount: { type: Type.NUMBER },
+               type: { type: Type.STRING },
+               category: { type: Type.STRING }
+             }
+          }
+        }
+      }
+    });
+
+    if (!response.text) throw new Error("No data returned from Gemini");
+    return JSON.parse(response.text);
+  }
+
+  /**
+   * NEW: Parse natural language transaction input
+   * Example: "Spent 500 on groceries at DMart yesterday"
+   */
+  async parseNaturalLanguage(
+    input: string,
+    apiKey: string
+  ): Promise<{
+    merchant: string;
+    amount: number;
+    category: string;
+    type: 'expense' | 'income';
+    date: string;
+  }> {
+    const ai = this.getAI(apiKey);
+
+    const prompt = `You are a transaction parser. Extract transaction details from natural language.
+
+User input: "${input}"
+
+Today's date: ${new Date().toISOString().split('T')[0]}
+
+Extract:
+- merchant: Business name (if mentioned, otherwise "Unknown")
+- amount: Numeric value
+- category: Food & Dining, Transportation, Shopping, Entertainment, Health & Fitness, Groceries, Utilities, Income, or Other
+- type: "expense" or "income" (default to expense unless clearly income)
+- date: YYYY-MM-DD (interpret "yesterday", "last week", etc. relative to today)`;
+
+    const response = await ai.models.generateContent({
+      model: GEMINI_MODEL,
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            merchant: { type: Type.STRING },
+            amount: { type: Type.NUMBER },
+            category: { type: Type.STRING },
+            type: { type: Type.STRING, enum: ["expense", "income"] },
+            date: { type: Type.STRING }
+          }
+        }
+      }
+    });
+
+    if (!response.text) throw new Error("No data returned from Gemini");
+    return JSON.parse(response.text);
+  }
+
+  /**
+   * NEW: Generate AI insights from transaction data
+   */
+  async generateInsights(
+    transactions: any[],
+    apiKey: string
+  ): Promise<{
+    patterns: string[];
+    anomalies: string[];
+    suggestions: string[];
+  }> {
+    const ai = this.getAI(apiKey);
+
+    const prompt = `You are a financial advisor analyzing spending patterns.
+
+Transaction data (last 30 days):
+${JSON.stringify(transactions.slice(0, 100), null, 2)}
+
+Analyze and provide:
+1. patterns: 3 spending patterns (e.g., "You spend 40% more on weekends")
+2. anomalies: 2 unusual transactions (e.g., "Unusually high shopping expense")
+3. suggestions: 3 actionable savings tips (e.g., "Reduce dining out by 15%")`;
+
+    const response = await ai.models.generateContent({
+      model: GEMINI_MODEL,
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            patterns: { type: Type.ARRAY, items: { type: Type.STRING } },
+            anomalies: { type: Type.ARRAY, items: { type: Type.STRING } },
+            suggestions: { type: Type.ARRAY, items: { type: Type.STRING } }
+          }
+        }
+      }
+    });
+
+    if (!response.text) throw new Error("No data returned from Gemini");
+    return JSON.parse(response.text);
+  }
+}
+
+export const geminiService = new GeminiService();
