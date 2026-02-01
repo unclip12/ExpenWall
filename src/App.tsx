@@ -9,11 +9,11 @@ import { TransactionList } from './components/TransactionList';
 import { ProductsView } from './components/ProductsView';
 import { SmartTransactionForm } from './components/SmartTransactionForm';
 import { EnhancedSettingsView } from './components/EnhancedSettingsView';
-import { PersonTransactionsView } from './components/PersonTransactionsView';
+import { Transaction, MerchantRule, Wallet, Product, ShopLocation, Person } from './types';
 import { 
   subscribeToTransactions, 
   subscribeToRules, 
-  subscribeToWallets, 
+  subscribeToWallets,
   subscribeToProducts,
   addTransactionToDb,
   deleteTransaction,
@@ -26,19 +26,18 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [currentView, setCurrentView] = useState('dashboard');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [showTransactionForm, setShowTransactionForm] = useState(false);
   
-  // Data states
-  const [transactions, setTransactions] = useState([]);
-  const [rules, setRules] = useState([]);
-  const [wallets, setWallets] = useState([]);
-  const [products, setProducts] = useState([]);
-  const [shops, setShops] = useState([]);
-  const [persons, setPersons] = useState([]);
+  // Data states with explicit types
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [rules, setRules] = useState<MerchantRule[]>([]);
+  const [wallets, setWallets] = useState<Wallet[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [shops, setShops] = useState<ShopLocation[]>([]);
+  const [persons, setPersons] = useState<Person[]>([]);
   const [theme, setTheme] = useState('light');
 
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((user) => {
+    const unsubscribe = auth.onAuthStateChanged((user: any) => {
       setUser(user);
       setLoading(false);
     });
@@ -70,7 +69,7 @@ function App() {
 
   const handleAddTransaction = async (tx: any) => {
     await addTransactionToDb(tx, user.uid);
-    setShowTransactionForm(false);
+    setCurrentView('dashboard');
   };
 
   const handleCreateRule = async (original: string, renamed: string, category?: any, subcategory?: string) => {

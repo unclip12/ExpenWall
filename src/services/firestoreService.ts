@@ -18,8 +18,8 @@ export const subscribeToTransactions = (userId: string, callback: (data: Transac
   return db.collection('transactions')
     .where('userId', '==', userId)
     .orderBy('date', 'desc')
-    .onSnapshot(snapshot => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction));
+    .onSnapshot((snapshot: any) => {
+      const data = snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() } as Transaction));
       callback(data);
     });
 };
@@ -58,8 +58,8 @@ export const deleteTransaction = async (id: string) => {
 export const subscribeToRules = (userId: string, callback: (data: MerchantRule[]) => void) => {
   return db.collection('merchantRules')
     .where('userId', '==', userId)
-    .onSnapshot(snapshot => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as MerchantRule));
+    .onSnapshot((snapshot: any) => {
+      const data = snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() } as MerchantRule));
       callback(data);
     });
 };
@@ -77,8 +77,8 @@ export const deleteMerchantRule = async (id: string) => {
 export const subscribeToBuyingList = (userId: string, callback: (data: BuyingItem[]) => void) => {
   return db.collection('buyingList')
     .where('userId', '==', userId)
-    .onSnapshot(snapshot => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as BuyingItem));
+    .onSnapshot((snapshot: any) => {
+      const data = snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() } as BuyingItem));
       callback(data);
     });
 };
@@ -108,8 +108,8 @@ export const deleteBuyingItem = async (id: string) => {
 export const subscribeToWallets = (userId: string, callback: (data: Wallet[]) => void) => {
   return db.collection('wallets')
     .where('userId', '==', userId)
-    .onSnapshot(snapshot => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Wallet));
+    .onSnapshot((snapshot: any) => {
+      const data = snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() } as Wallet));
       callback(data);
     });
 };
@@ -131,8 +131,8 @@ export const deleteWalletFromDb = async (id: string) => {
 export const subscribeToRecurringTransactions = (userId: string, callback: (data: RecurringTransaction[]) => void) => {
   return db.collection('recurringTransactions')
     .where('userId', '==', userId)
-    .onSnapshot(snapshot => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as RecurringTransaction));
+    .onSnapshot((snapshot: any) => {
+      const data = snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() } as RecurringTransaction));
       callback(data);
     });
 };
@@ -154,8 +154,8 @@ export const deleteRecurringTransaction = async (id: string) => {
 export const subscribeToBudgets = (userId: string, callback: (data: Budget[]) => void) => {
   return db.collection('budgets')
     .where('userId', '==', userId)
-    .onSnapshot(snapshot => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Budget));
+    .onSnapshot((snapshot: any) => {
+      const data = snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() } as Budget));
       callback(data);
     });
 };
@@ -209,8 +209,8 @@ export const saveUserAISettings = async (userId: string, settings: Partial<UserP
 export const subscribeToProducts = (userId: string, callback: (data: Product[]) => void) => {
   return db.collection('products')
     .where('userId', '==', userId)
-    .onSnapshot(snapshot => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+    .onSnapshot((snapshot: any) => {
+      const data = snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() } as Product));
       callback(data);
     });
 };
@@ -240,5 +240,5 @@ export const getPriceHistory = async (userId: string, productName: string): Prom
     .orderBy('date', 'desc')
     .get();
   
-  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PriceHistory));
+  return snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() } as PriceHistory));
 };
