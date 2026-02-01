@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Trash2, CheckCircle, Circle, ShoppingCart, AlertCircle, Loader2, X, MapPin, Store } from 'lucide-react';
+import { Plus, Trash2, CheckCircle, Circle, ShoppingCart, AlertCircle, Loader2, X, MapPin, Store, Zap } from 'lucide-react';
 import { BuyingItem, Category } from '../types';
 import { CURRENCIES, DEFAULT_CURRENCY, CATEGORIES } from '../constants';
 import { addBuyingItem, updateBuyingItemStatus, deleteBuyingItem, addTransactionToDb } from '../services/firestoreService';
