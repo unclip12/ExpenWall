@@ -11,10 +11,13 @@ import {
   Wallet as WalletIcon,
   Trash2,
   Plus,
-  Loader2
+  Loader2,
+  Database,
+  AlertTriangle
 } from 'lucide-react';
 import { AI_PROVIDERS, CURRENCIES, DEFAULT_CURRENCY, THEME_OPTIONS } from '../constants';
 import { getUserProfile, saveUserAISettings, subscribeToWallets, addWalletToDb, deleteWalletFromDb } from '../services/firestoreService';
+import { resetAppData, initializeSeedData } from '../services/seedDataService';
 import { Wallet, WalletType } from '../types';
 
 interface EnhancedSettingsViewProps {
@@ -39,6 +42,12 @@ export const EnhancedSettingsView: React.FC<EnhancedSettingsViewProps> = ({
   const [wallets, setWallets] = useState<Wallet[]>([]);
   const [newWallet, setNewWallet] = useState({ name: '', type: 'bank' as WalletType });
   const [isAddingWallet, setIsAddingWallet] = useState(false);
+
+  // Data Management State
+  const [isResetting, setIsResetting] = useState(false);
+  const [isReInitializing, setIsReInitializing] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [showReinitConfirm, setShowReinitConfirm] = useState(false);
 
   useEffect(() => {
     loadUserSettings();
@@ -104,6 +113,38 @@ export const EnhancedSettingsView: React.FC<EnhancedSettingsViewProps> = ({
     await deleteWalletFromDb(id);
   };
 
+  const handleResetAppData = async () => {
+    setIsResetting(true);
+    try {
+      await resetAppData(userId);
+      alert('✅ App data reset successfully! The page will now reload.');
+      window.location.reload();
+    } catch (error) {
+      console.error('Failed to reset app data:', error);
+      alert('❌ Failed to reset app data. Please try again.');
+    } finally {
+      setIsResetting(false);
+      setShowResetConfirm(false);
+    }
+  };
+
+  const handleReinitializeSeedData = async () => {
+    setIsReInitializing(true);
+    try {
+      // First reset, then reinitialize
+      await resetAppData(userId);
+      await initializeSeedData(userId);
+      alert('✅ Example data reinitialized successfully! The page will now reload.');
+      window.location.reload();
+    } catch (error) {
+      console.error('Failed to reinitialize seed data:', error);
+      alert('❌ Failed to reinitialize data. Please try again.');
+    } finally {
+      setIsReInitializing(false);
+      setShowReinitConfirm(false);
+    }
+  };
+
   const testConnection = async () => {
     alert('Testing connection...');
   };
@@ -119,6 +160,130 @@ export const EnhancedSettingsView: React.FC<EnhancedSettingsViewProps> = ({
           <div>
             <h1 className="text-4xl font-bold">Settings</h1>
             <p className="text-xl opacity-90">Customize your ExpenWall experience</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Data Management Section */}
+      <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl p-6 rounded-3xl shadow-xl border border-slate-200 dark:border-slate-700">
+        <div className="flex items-center space-x-3 mb-4">
+          <Database className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
+          <h3 className="text-xl font-bold text-slate-800 dark:text-white">Data Management</h3>
+        </div>
+
+        <div className="space-y-4">
+          {/* Reinitialize Example Data */}
+          <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-2xl">
+            <div className="flex items-start justify-between mb-3">
+              <div className="flex-1">
+                <h4 className="font-bold text-slate-800 dark:text-white mb-1">Reload Example Data</h4>
+                <p className="text-sm text-slate-600 dark:text-slate-400">
+                  Reset your app and reload 100+ example transactions with realistic Indian shopping data from DMart, JioMart, Zepto, Flipkart, Amazon, and more.
+                </p>
+              </div>
+            </div>
+            {!showReinitConfirm ? (
+              <button
+                onClick={() => setShowReinitConfirm(true)}
+                disabled={isReInitializing}
+                className="w-full px-4 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 disabled:opacity-50 transition-all flex items-center justify-center space-x-2"
+              >
+                <RefreshCw className="w-5 h-5" />
+                <span>Reload Example Data</span>
+              </button>
+            ) : (
+              <div className="space-y-2">
+                <div className="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 rounded-xl flex items-start space-x-2">
+                  <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-amber-800 dark:text-amber-200">
+                    <strong>Warning:</strong> This will delete ALL your current data and reload fresh example data. This action cannot be undone.
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleReinitializeSeedData}
+                    disabled={isReInitializing}
+                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 disabled:opacity-50 transition-all flex items-center justify-center space-x-2"
+                  >
+                    {isReInitializing ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Processing...</span>
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle className="w-4 h-4" />
+                        <span>Yes, Reload Data</span>
+                      </>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => setShowReinitConfirm(false)}
+                    disabled={isReInitializing}
+                    className="flex-1 px-4 py-2 bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-white rounded-xl font-semibold hover:bg-slate-300 dark:hover:bg-slate-600 disabled:opacity-50 transition-all"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Reset All Data */}
+          <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl">
+            <div className="flex items-start justify-between mb-3">
+              <div className="flex-1">
+                <h4 className="font-bold text-slate-800 dark:text-white mb-1">Reset All Data</h4>
+                <p className="text-sm text-slate-600 dark:text-slate-400">
+                  Permanently delete all your transactions, wallets, budgets, and other data. Use this to start fresh with a clean slate.
+                </p>
+              </div>
+            </div>
+            {!showResetConfirm ? (
+              <button
+                onClick={() => setShowResetConfirm(true)}
+                disabled={isResetting}
+                className="w-full px-4 py-3 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 disabled:opacity-50 transition-all flex items-center justify-center space-x-2"
+              >
+                <Trash2 className="w-5 h-5" />
+                <span>Reset All Data</span>
+              </button>
+            ) : (
+              <div className="space-y-2">
+                <div className="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 rounded-xl flex items-start space-x-2">
+                  <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-amber-800 dark:text-amber-200">
+                    <strong>Warning:</strong> This will permanently delete ALL your data including transactions, wallets, budgets, and settings. This action cannot be undone.
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleResetAppData}
+                    disabled={isResetting}
+                    className="flex-1 px-4 py-2 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 disabled:opacity-50 transition-all flex items-center justify-center space-x-2"
+                  >
+                    {isResetting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Resetting...</span>
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle className="w-4 h-4" />
+                        <span>Yes, Delete Everything</span>
+                      </>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => setShowResetConfirm(false)}
+                    disabled={isResetting}
+                    className="flex-1 px-4 py-2 bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-white rounded-xl font-semibold hover:bg-slate-300 dark:hover:bg-slate-600 disabled:opacity-50 transition-all"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
