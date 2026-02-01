@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { auth } from './firebase';
 import { Menu, X } from 'lucide-react';
@@ -30,6 +31,8 @@ function App() {
   const [rules, setRules] = useState([]);
   const [wallets, setWallets] = useState([]);
   const [products, setProducts] = useState([]);
+  const [shops, setShops] = useState([]);
+  const [persons, setPersons] = useState([]);
   const [apiKey, setApiKey] = useState('');
   const [theme, setTheme] = useState('light');
 
@@ -61,29 +64,38 @@ function App() {
     setCurrentView('dashboard');
   };
 
+  const handleCreateRule = async (original: string, renamed: string, category?: any, subcategory?: string) => {
+    await addMerchantRule({
+      originalName: original,
+      renamedTo: renamed,
+      forcedCategory: category,
+      forcedSubcategory: subcategory
+    }, user.uid);
+  };
+
   if (loading) return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
   if (!user) return <ThemeProvider><LoginView /></ThemeProvider>;
 
   return (
     <ThemeProvider>
       <div className={`min-h-screen ${theme === 'dark' ? 'dark bg-slate-900' : 'bg-slate-50'}`}>
-        <header className="bg-white/80 dark:bg-slate-800/80 p-4 sticky top-0 z-40 flex justify-between items-center border-b dark:border-slate-700">
+        <header className="bg-white/80 dark:bg-slate-800/80 p-4 sticky top-0 z-40 flex justify-between items-center border-b dark:border-slate-700 backdrop-blur-sm">
           <h1 className="text-xl font-bold text-indigo-600">ExpenWall</h1>
           <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="md:hidden"><Menu className="w-6 h-6 dark:text-white" /></button>
         </header>
         <div className="max-w-7xl mx-auto p-4 flex gap-6">
-          <nav className={`md:w-64 ${isMobileMenuOpen ? 'block' : 'hidden md:block'} bg-white dark:bg-slate-800 p-4 rounded-xl h-fit sticky top-20`}>
+          <nav className={`md:w-64 ${isMobileMenuOpen ? 'block' : 'hidden md:block'} bg-white dark:bg-slate-800 p-4 rounded-xl h-fit sticky top-20 shadow-sm border border-slate-200 dark:border-slate-700`}>
             {NAV_ITEMS.map(item => (
-              <button key={item.id} onClick={() => { setCurrentView(item.id); setIsMobileMenuOpen(false); }} className="w-full text-left p-3 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg dark:text-white mb-1">
+              <button key={item.id} onClick={() => { setCurrentView(item.id); setIsMobileMenuOpen(false); }} className={`w-full text-left p-3 rounded-lg dark:text-white mb-1 transition-colors ${currentView === item.id ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700' : 'hover:bg-slate-100 dark:hover:bg-slate-700'}`}>
                 {item.label}
               </button>
             ))}
           </nav>
           <main className="flex-1">
             {currentView === 'dashboard' && <Dashboard transactions={transactions} rules={rules} budgets={[]} apiKey={apiKey} />}
-            {currentView === 'transactions' && <TransactionList transactions={transactions} rules={rules} userId={user.uid} wallets={wallets} onEditTransaction={() => {}} onDeleteTransaction={deleteTransaction} onCreateRule={() => {}} />}
+            {currentView === 'transactions' && <TransactionList transactions={transactions} rules={rules} userId={user.uid} wallets={wallets} onEditTransaction={() => {}} onDeleteTransaction={deleteTransaction} onCreateRule={handleCreateRule} />}
             {currentView === 'products' && <ProductsView products={products} priceHistory={[]} onProductClick={() => {}} />}
-            {currentView === 'add' && <SmartTransactionForm onSubmit={handleAddTransaction} onClose={() => setCurrentView('dashboard')} shops={[]} persons={[]} />}
+            {currentView === 'add' && <SmartTransactionForm onSubmit={handleAddTransaction} onClose={() => setCurrentView('dashboard')} shops={shops} persons={persons} />}
             {currentView === 'settings' && <EnhancedSettingsView userId={user.uid} currentTheme={theme} onThemeChange={setTheme} />}
           </main>
         </div>
