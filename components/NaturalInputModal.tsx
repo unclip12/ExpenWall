@@ -13,10 +13,9 @@ interface NaturalInputModalProps {
     type: 'expense' | 'income';
     date: string;
   }) => void;
-  apiKey?: string;
 }
 
-export const NaturalInputModal: React.FC<NaturalInputModalProps> = ({ isOpen, onClose, onSubmit, apiKey }) => {
+export const NaturalInputModal: React.FC<NaturalInputModalProps> = ({ isOpen, onClose, onSubmit }) => {
   const [input, setInput] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [parsedData, setParsedData] = useState<any>(null);
@@ -26,17 +25,13 @@ export const NaturalInputModal: React.FC<NaturalInputModalProps> = ({ isOpen, on
 
   const handleParse = async () => {
     if (!input.trim()) return;
-    if (!apiKey) {
-      setError('API Key not configured. Please set it in Settings.');
-      return;
-    }
 
     setIsProcessing(true);
     setError(null);
     setParsedData(null);
 
     try {
-      const result = await geminiService.parseNaturalLanguage(input, apiKey);
+      const result = await geminiService.parseNaturalLanguage(input);
       setParsedData(result);
     } catch (err: any) {
       console.error('Parse error:', err);

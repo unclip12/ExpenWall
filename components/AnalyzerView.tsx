@@ -5,7 +5,6 @@ import { Category, Transaction, DraftTransaction, AnalyzerState } from '../types
 import { GEMINI_MODEL } from '../services/geminiService';
 
 interface AnalyzerViewProps {
-  apiKey?: string;
   state: AnalyzerState;
   onStateChange: (newState: Partial<AnalyzerState>) => void;
   onSaveTransactions: (transactions: Omit<Transaction, 'id'>[]) => Promise<void>;
@@ -14,7 +13,6 @@ interface AnalyzerViewProps {
 }
 
 export const AnalyzerView: React.FC<AnalyzerViewProps> = ({ 
-  apiKey, 
   state, 
   onStateChange,
   onSaveTransactions, 

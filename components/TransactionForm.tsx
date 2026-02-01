@@ -7,13 +7,12 @@ import { geminiService, GEMINI_MODEL } from '../services/geminiService';
 interface TransactionFormProps {
   onSubmit: (transaction: Omit<Transaction, 'id'>) => void;
   onCancel: () => void;
-  apiKey?: string;
   onOpenSettings?: () => void;
   wallets?: Wallet[];
   initialData?: Transaction;
 }
 
-export const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit, onCancel, apiKey, onOpenSettings, wallets = [], initialData }) => {
+export const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit, onCancel, onOpenSettings, wallets = [], initialData }) => {
   // Initialize form with preferred currency
   const [formData, setFormData] = useState<Omit<Transaction, 'id'>>({
     merchant: initialData?.merchant ?? '',
@@ -46,39 +45,8 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit, onCa
   };
 
   const renderErrorGuide = (errorMsg: string) => {
-    const isQuotaError = errorMsg.includes('429') || errorMsg.toLowerCase().includes('quota') || errorMsg.includes('RESOURCE_EXHAUSTED');
-    const isKeyError = errorMsg.includes('403') || errorMsg.toLowerCase().includes('api key') || errorMsg.includes('PERMISSION_DENIED');
-    const isNotFoundError = errorMsg.includes('404') || errorMsg.includes('NOT_FOUND');
-
     let title = "Scanning Error";
     let description = errorMsg;
-    let actionLink = "https://ai.google.dev/gemini-api/docs";
-    let actionText = "Gemini Docs";
-
-    if (isQuotaError) {
-      title = "Quota Exceeded";
-      description = "You have reached the free tier limits for the Gemini API.";
-      actionLink = "https://aistudio.google.com/app/plan_information";
-      actionText = "Check Usage & Billing";
-    } else if (isKeyError) {
-      title = "Invalid API Key";
-      description = "The API Key in settings is incorrect or has expired.";
-      actionLink = "https://aistudio.google.com/app/apikey";
-      actionText = "Get New API Key";
-    } else if (isNotFoundError) {
-      title = "Model Not Available";
-      description = `The model '${GEMINI_MODEL}' is not available in your region or account type.`;
-      actionLink = "https://ai.google.dev/gemini-api/docs/models/gemini";
-      actionText = "Check Model Availability";
-    }
-
-    let technicalDetails = errorMsg;
-    try {
-        if (errorMsg.includes('{')) {
-            const parsed = JSON.parse(errorMsg.substring(errorMsg.indexOf('{')));
-            technicalDetails = parsed.error?.message || parsed.message || errorMsg;
-        }
-    } catch {}
 
     return (
       <div className="flex flex-col items-center space-y-3 w-full bg-red-50 p-4 rounded-xl border border-red-100 shadow-sm text-left">
@@ -89,26 +57,8 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit, onCa
             <div className="flex-1">
                <h4 className="text-sm font-bold text-red-800">{title}</h4>
                <p className="text-xs text-red-600 mt-1 mb-2">{description}</p>
-               <a 
-                 href={actionLink} 
-                 target="_blank" 
-                 rel="noopener noreferrer"
-                 className="inline-flex items-center text-xs font-bold text-white bg-red-600 hover:bg-red-700 px-3 py-1.5 rounded-lg transition-colors"
-               >
-                 {actionText}
-                 <ExternalLink className="w-3 h-3 ml-1" />
-               </a>
             </div>
          </div>
-         
-         <details className="w-full">
-            <summary className="text-[10px] text-red-400 cursor-pointer hover:text-red-600 flex items-center gap-1">
-               <HelpCircle className="w-3 h-3" /> Show Technical Details
-            </summary>
-            <div className="mt-2 p-2 bg-white/50 rounded border border-red-100 text-[10px] font-mono text-red-800 break-words max-h-24 overflow-y-auto">
-               {technicalDetails}
-            </div>
-         </details>
       </div>
     );
   };
@@ -116,11 +66,6 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit, onCa
   const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    if (!apiKey) {
-      setScanError("Missing API Key");
-      return;
-    }
 
     setIsScanning(true);
     setScanError(null);
@@ -133,7 +78,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit, onCa
         const mimeType = file.type;
 
         try {
-          const receiptData: ReceiptData = await geminiService.processReceiptImage(base64Data, mimeType, apiKey);
+          const receiptData: ReceiptData = await geminiService.processReceiptImage(base64Data, mimeType);
           
           let detectedCurrency = localStorage.getItem('expenwall_currency') || DEFAULT_CURRENCY;
           
@@ -222,13 +167,11 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit, onCa
 
         {/* Improved File Upload UI */}
         <div 
-          onClick={() => !apiKey ? onOpenSettings?.() : fileInputRef.current?.click()}
+          onClick={() => fileInputRef.current?.click()}
           className={`group border-2 border-dashed rounded-2xl p-8 text-center transition-all relative cursor-pointer ${
             isScanning 
               ? 'bg-indigo-50 border-indigo-300' 
-              : apiKey 
-                ? 'bg-slate-50 hover:bg-indigo-50/50 border-slate-200 hover:border-indigo-300'
-                : 'bg-orange-50 border-orange-200'
+              : 'bg-slate-50 hover:bg-indigo-50/50 border-slate-200 hover:border-indigo-300'
           }`}
         >
           <div className="absolute top-3 right-3 flex items-center space-x-1 bg-white/90 backdrop-blur px-2 py-1 rounded-full text-[10px] text-indigo-500 font-bold border border-indigo-100 shadow-sm">
@@ -236,17 +179,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit, onCa
              <span>AI Auto-Fill</span>
           </div>
 
-          {!apiKey ? (
-             <div className="flex flex-col items-center justify-center space-y-3">
-               <div className="p-3 bg-orange-100 text-orange-600 rounded-full">
-                 <AlertCircle className="w-8 h-8" />
-               </div>
-               <div>
-                 <p className="text-slate-800 font-bold">AI Scanner Not Ready</p>
-                 <p className="text-sm text-slate-500">Add your API Key in settings to enable receipt scanning.</p>
-               </div>
-             </div>
-          ) : isScanning ? (
+          {isScanning ? (
              <div className="flex flex-col items-center justify-center space-y-4 py-2">
                <div className="relative">
                  <div className="w-16 h-16 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>

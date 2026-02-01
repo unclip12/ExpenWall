@@ -6,10 +6,9 @@ import { geminiService } from '../services/geminiService';
 
 interface InsightsPanelProps {
   transactions: Transaction[];
-  apiKey?: string;
 }
 
-export const InsightsPanel: React.FC<InsightsPanelProps> = ({ transactions, apiKey }) => {
+export const InsightsPanel: React.FC<InsightsPanelProps> = ({ transactions }) => {
   const [insights, setInsights] = useState<AIInsight[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [useAI, setUseAI] = useState(false);
@@ -24,14 +23,9 @@ export const InsightsPanel: React.FC<InsightsPanelProps> = ({ transactions, apiK
   };
 
   const refreshWithAI = async () => {
-    if (!apiKey) {
-      alert('API Key not configured for AI insights');
-      return;
-    }
-
     setIsLoading(true);
     try {
-      const aiData = await geminiService.generateInsights(transactions, apiKey);
+      const aiData = await geminiService.generateInsights(transactions);
       
       const aiInsights: AIInsight[] = [
         ...aiData.patterns.map((p, i) => ({
@@ -110,20 +104,18 @@ export const InsightsPanel: React.FC<InsightsPanelProps> = ({ transactions, apiK
             {useAI ? 'AI Insights' : 'Smart Insights'}
           </h3>
         </div>
-        {apiKey && (
-          <button
-            onClick={refreshWithAI}
-            disabled={isLoading}
-            className="p-2 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-colors disabled:opacity-50"
-            title="Refresh with AI"
-          >
-            {isLoading ? (
-              <Loader2 className="w-5 h-5 animate-spin" />
-            ) : (
-              <RefreshCw className="w-5 h-5" />
-            )}
-          </button>
-        )}
+        <button
+          onClick={refreshWithAI}
+          disabled={isLoading}
+          className="p-2 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-colors disabled:opacity-50"
+          title="Refresh with AI"
+        >
+          {isLoading ? (
+            <Loader2 className="w-5 h-5 animate-spin" />
+          ) : (
+            <RefreshCw className="w-5 h-5" />
+          )}
+        </button>
       </div>
 
       <div className="space-y-3">

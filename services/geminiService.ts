@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Type } from '@google/genai';
 import { ReceiptData, StatementData, DraftTransaction } from '../types';
 
@@ -7,16 +6,16 @@ export const GEMINI_MODEL = 'gemini-2.5-flash-image';
 const TEXT_MODEL = 'gemini-3-flash-preview';
 
 class GeminiService {
-  private getAI(apiKey: string) {
-    return new GoogleGenAI({ apiKey });
+  private getAI() {
+    return new GoogleGenAI({ apiKey: process.env.API_KEY });
   }
 
   /**
    * Process a receipt image and extract transaction data
    * Uses gemini-2.5-flash-image for vision capabilities
    */
-  async processReceiptImage(base64Data: string, mimeType: string, apiKey: string): Promise<ReceiptData> {
-    const ai = this.getAI(apiKey);
+  async processReceiptImage(base64Data: string, mimeType: string): Promise<ReceiptData> {
+    const ai = this.getAI();
     const prompt = `Extract the following from this receipt image: merchant, date, totalAmount, currency, category, items(name, price).`;
     
     const response = await ai.models.generateContent({
@@ -59,8 +58,8 @@ class GeminiService {
    * Analyze bank statement image
    * Uses gemini-2.5-flash-image for vision capabilities
    */
-  async analyzeBankStatement(base64Data: string, mimeType: string, apiKey: string, historyContext: string = ''): Promise<StatementData> {
-    const ai = this.getAI(apiKey);
+  async analyzeBankStatement(base64Data: string, mimeType: string, historyContext: string = ''): Promise<StatementData> {
+    const ai = this.getAI();
     const prompt = `Extract ALL transactions from this bank statement. ${historyContext}`;
     
     const response = await ai.models.generateContent({
@@ -101,8 +100,8 @@ class GeminiService {
    * Refine draft transactions based on user feedback
    * Uses gemini-3-flash-preview for complex text reasoning
    */
-  async refineBankStatement(drafts: DraftTransaction[], userCorrection: string, apiKey: string): Promise<DraftTransaction[]> {
-    const ai = this.getAI(apiKey);
+  async refineBankStatement(drafts: DraftTransaction[], userCorrection: string): Promise<DraftTransaction[]> {
+    const ai = this.getAI();
     const prompt = `Correct these drafts based on user input: ${JSON.stringify(drafts)}. User: "${userCorrection}"`;
     
     const response = await ai.models.generateContent({
@@ -134,8 +133,8 @@ class GeminiService {
    * Parse natural language transaction input
    * Uses gemini-3-flash-preview for text understanding
    */
-  async parseNaturalLanguage(input: string, apiKey: string): Promise<any> {
-    const ai = this.getAI(apiKey);
+  async parseNaturalLanguage(input: string): Promise<any> {
+    const ai = this.getAI();
     const prompt = `Parse transaction: "${input}". Today: ${new Date().toISOString().split('T')[0]}`;
     
     const response = await ai.models.generateContent({
@@ -163,8 +162,8 @@ class GeminiService {
    * Generate insights from transaction history
    * Uses gemini-3-flash-preview for reasoning
    */
-  async generateInsights(transactions: any[], apiKey: string): Promise<any> {
-    const ai = this.getAI(apiKey);
+  async generateInsights(transactions: any[]): Promise<any> {
+    const ai = this.getAI();
     // Limit to 50 recent transactions to save tokens
     const prompt = `Analyze spending patterns, anomalies, and suggestions for: ${JSON.stringify(transactions.slice(0, 50))}`;
     

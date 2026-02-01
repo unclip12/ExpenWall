@@ -1,23 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { Settings, Key, Globe, Palette, Moon, Sun, Monitor, Save, Trash2, Plus, Loader2 } from 'lucide-react';
+import { Settings, Globe, Palette, Moon, Sun, Monitor, Save, Trash2, Plus, Loader2 } from 'lucide-react';
 import { CURRENCIES, DEFAULT_CURRENCY, THEME_OPTIONS } from '../constants';
-import { getUserProfile, saveUserApiKey, saveUserTheme, subscribeToWallets, addWalletToDb, deleteWalletFromDb } from '../services/firestoreService';
+import { getUserProfile, saveUserTheme, subscribeToWallets, addWalletToDb, deleteWalletFromDb } from '../services/firestoreService';
 import { Wallet, WalletType } from '../types';
 import { useTheme } from '../contexts/ThemeContext';
 
 interface SettingsViewProps {
   userId: string;
-  onApiKeyChange: (key: string) => void;
-  // Props from previous version compatibility (if needed)
-  currentApiKey?: string;
-  onApiKeyUpdate?: (key: string) => void;
 }
 
-export const SettingsView: React.FC<SettingsViewProps> = ({ userId, onApiKeyChange, currentApiKey, onApiKeyUpdate }) => {
+export const SettingsView: React.FC<SettingsViewProps> = ({ userId }) => {
   const { theme, setTheme } = useTheme();
-  const [apiKey, setApiKey] = useState(currentApiKey || '');
   const [currency, setCurrency] = useState(DEFAULT_CURRENCY);
-  const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [wallets, setWallets] = useState<Wallet[]>([]);
   const [newWallet, setNewWallet] = useState({ name: '', type: 'bank' as WalletType });
@@ -30,32 +24,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ userId, onApiKeyChan
   }, [userId]);
 
   const loadSettings = async () => {
-    const profile = await getUserProfile(userId);
-    if (profile?.apiKey) {
-      setApiKey(profile.apiKey);
-      onApiKeyChange(profile.apiKey);
-      if (onApiKeyUpdate) onApiKeyUpdate(profile.apiKey);
-    }
-    
     const savedCurrency = localStorage.getItem('expenwall_currency');
     if (savedCurrency) setCurrency(savedCurrency);
-  };
-
-  const handleSaveApiKey = async () => {
-    setIsSaving(true);
-    setSaveSuccess(false);
-    try {
-      await saveUserApiKey(userId, apiKey);
-      onApiKeyChange(apiKey);
-      if (onApiKeyUpdate) onApiKeyUpdate(apiKey);
-      setSaveSuccess(true);
-      setTimeout(() => setSaveSuccess(false), 2000);
-    } catch (error) {
-      console.error('Failed to save API key:', error);
-      alert('Failed to save API key');
-    } finally {
-      setIsSaving(false);
-    }
   };
 
   const handleSaveCurrency = () => {
@@ -172,51 +142,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ userId, onApiKeyChan
           >
             <Save className="w-5 h-5" />
             <span>Save Currency</span>
-          </button>
-        </div>
-      </div>
-
-      {/* API Key Settings */}
-      <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-lg border border-slate-100 dark:border-slate-700">
-        <div className="flex items-center space-x-3 mb-4">
-          <Key className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-          <h3 className="text-lg font-bold text-slate-800 dark:text-white">Gemini API Key</h3>
-        </div>
-        
-        <div className="space-y-4">
-          <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-200 dark:border-blue-800">
-            <p className="text-sm text-blue-800 dark:text-blue-300 mb-2">
-              Required for AI-powered receipt scanning and natural language input.
-            </p>
-            <a
-              href="https://aistudio.google.com/app/apikey"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-sm font-bold text-blue-600 dark:text-blue-400 hover:underline"
-            >
-              Get your free API key →
-            </a>
-          </div>
-
-          <input
-            type="password"
-            value={apiKey}
-            onChange={(e) => setApiKey(e.target.value)}
-            placeholder="Enter your Gemini API Key"
-            className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
-          />
-
-          <button
-            onClick={handleSaveApiKey}
-            disabled={isSaving || !apiKey}
-            className="w-full md:w-auto px-6 py-3 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 disabled:opacity-50 transition-all flex items-center justify-center space-x-2 shadow-lg"
-          >
-            {isSaving ? (
-              <Loader2 className="w-5 h-5 animate-spin" />
-            ) : (
-              <Save className="w-5 h-5" />
-            )}
-            <span>Save API Key</span>
           </button>
         </div>
       </div>

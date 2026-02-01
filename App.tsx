@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { auth } from './firebase';
 import { Menu, X } from 'lucide-react';
@@ -33,7 +32,6 @@ function App() {
   const [products, setProducts] = useState([]);
   const [shops, setShops] = useState([]);
   const [persons, setPersons] = useState([]);
-  const [apiKey, setApiKey] = useState('');
   const [theme, setTheme] = useState('light');
 
   useEffect(() => {
@@ -52,7 +50,6 @@ function App() {
     const unsubProducts = subscribeToProducts(user.uid, setProducts);
     getUserProfile(user.uid).then(profile => {
       if (profile) {
-        setApiKey(profile.geminiApiKey || profile.apiKey || '');
         setTheme(profile.theme || 'light');
       }
     });
@@ -92,7 +89,7 @@ function App() {
             ))}
           </nav>
           <main className="flex-1">
-            {currentView === 'dashboard' && <Dashboard transactions={transactions} rules={rules} budgets={[]} apiKey={apiKey} />}
+            {currentView === 'dashboard' && <Dashboard transactions={transactions} rules={rules} budgets={[]} />}
             {currentView === 'transactions' && <TransactionList transactions={transactions} rules={rules} userId={user.uid} wallets={wallets} onEditTransaction={() => {}} onDeleteTransaction={deleteTransaction} onCreateRule={handleCreateRule} />}
             {currentView === 'products' && <ProductsView products={products} priceHistory={[]} onProductClick={() => {}} />}
             {currentView === 'add' && <SmartTransactionForm onSubmit={handleAddTransaction} onClose={() => setCurrentView('dashboard')} shops={shops} persons={persons} />}
