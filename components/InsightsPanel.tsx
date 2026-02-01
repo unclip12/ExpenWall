@@ -28,7 +28,7 @@ export const InsightsPanel: React.FC<InsightsPanelProps> = ({ transactions }) =>
       const aiData = await geminiService.generateInsights(transactions);
       
       const aiInsights: AIInsight[] = [
-        ...aiData.patterns.map((p, i) => ({
+        ...aiData.patterns.map((p: string, i: number) => ({
           id: `ai-pattern-${i}`,
           type: 'pattern' as const,
           title: 'Spending Pattern',
@@ -37,7 +37,7 @@ export const InsightsPanel: React.FC<InsightsPanelProps> = ({ transactions }) =>
           actionable: false,
           createdAt: new Date(),
         })),
-        ...aiData.anomalies.map((a, i) => ({
+        ...aiData.anomalies.map((a: string, i: number) => ({
           id: `ai-anomaly-${i}`,
           type: 'anomaly' as const,
           title: 'Unusual Activity',
@@ -46,7 +46,7 @@ export const InsightsPanel: React.FC<InsightsPanelProps> = ({ transactions }) =>
           actionable: false,
           createdAt: new Date(),
         })),
-        ...aiData.suggestions.map((s, i) => ({
+        ...aiData.suggestions.map((s: string, i: number) => ({
           id: `ai-suggestion-${i}`,
           type: 'suggestion' as const,
           title: 'Savings Tip',

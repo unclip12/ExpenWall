@@ -9,6 +9,7 @@ import { TransactionList } from './components/TransactionList';
 import { ProductsView } from './components/ProductsView';
 import { SmartTransactionForm } from './components/SmartTransactionForm';
 import { EnhancedSettingsView } from './components/EnhancedSettingsView';
+import { Transaction, MerchantRule, Wallet, Product, ShopLocation, Person } from './types';
 import { 
   subscribeToTransactions, 
   subscribeToRules, 
@@ -26,12 +27,12 @@ function App() {
   const [currentView, setCurrentView] = useState('dashboard');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
-  const [transactions, setTransactions] = useState([]);
-  const [rules, setRules] = useState([]);
-  const [wallets, setWallets] = useState([]);
-  const [products, setProducts] = useState([]);
-  const [shops, setShops] = useState([]);
-  const [persons, setPersons] = useState([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [rules, setRules] = useState<MerchantRule[]>([]);
+  const [wallets, setWallets] = useState<Wallet[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [shops, setShops] = useState<ShopLocation[]>([]);
+  const [persons, setPersons] = useState<Person[]>([]);
   const [theme, setTheme] = useState('light');
 
   useEffect(() => {
