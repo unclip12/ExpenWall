@@ -9,7 +9,8 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react()],
     define: {
-      // API Key is now handled by user input, so we don't inject it globally here
+      // Define process.env.API_KEY to be available in the client-side code
+      'process.env.API_KEY': JSON.stringify(env.API_KEY)
     },
   };
 });
