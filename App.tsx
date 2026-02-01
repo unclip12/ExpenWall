@@ -30,21 +30,27 @@ import {
   getUserProfile
 } from './services/firestoreService';
 import { geminiService } from './services/geminiService';
-import { initializeSeedData } from './services/seedDataService';
+import { 
+  DEFAULT_TRANSACTIONS, 
+  DEFAULT_WALLETS, 
+  DEFAULT_BUYING_LIST, 
+  DEFAULT_PRODUCTS, 
+  DEFAULT_BUDGETS,
+  DEFAULT_RECURRING 
+} from './data/mockData';
 
 function App() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [currentView, setCurrentView] = useState('dashboard');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [seedDataLoading, setSeedDataLoading] = useState(false);
   
-  // Data states
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  // Data states - INITIALIZED WITH MOCK DATA
+  const [transactions, setTransactions] = useState<Transaction[]>(DEFAULT_TRANSACTIONS);
   const [rules, setRules] = useState<MerchantRule[]>([]);
-  const [wallets, setWallets] = useState<Wallet[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [buyingList, setBuyingList] = useState<BuyingItem[]>([]);
+  const [wallets, setWallets] = useState<Wallet[]>(DEFAULT_WALLETS);
+  const [products, setProducts] = useState<Product[]>(DEFAULT_PRODUCTS);
+  const [buyingList, setBuyingList] = useState<BuyingItem[]>(DEFAULT_BUYING_LIST);
   const [shops, setShops] = useState<ShopLocation[]>([]);
   const [persons, setPersons] = useState<Person[]>([]);
   const [theme, setTheme] = useState('light');
@@ -67,13 +73,35 @@ function App() {
   useEffect(() => {
     if (!user) return;
 
-    const unsubTx = subscribeToTransactions(user.uid, setTransactions);
+    // Subscribe to Firebase data (will merge with mock data)
+    const unsubTx = subscribeToTransactions(user.uid, (firebaseTransactions) => {
+      // Only update if Firebase has data, otherwise keep mock data
+      if (firebaseTransactions.length > 0) {
+        setTransactions(firebaseTransactions);
+      }
+    });
+    
     const unsubRules = subscribeToRules(user.uid, setRules);
-    const unsubWallets = subscribeToWallets(user.uid, setWallets);
-    const unsubProducts = subscribeToProducts(user.uid, setProducts);
-    const unsubBuying = subscribeToBuyingList(user.uid, setBuyingList);
+    
+    const unsubWallets = subscribeToWallets(user.uid, (firebaseWallets) => {
+      if (firebaseWallets.length > 0) {
+        setWallets(firebaseWallets);
+      }
+    });
+    
+    const unsubProducts = subscribeToProducts(user.uid, (firebaseProducts) => {
+      if (firebaseProducts.length > 0) {
+        setProducts(firebaseProducts);
+      }
+    });
+    
+    const unsubBuying = subscribeToBuyingList(user.uid, (firebaseBuying) => {
+      if (firebaseBuying.length > 0) {
+        setBuyingList(firebaseBuying);
+      }
+    });
 
-    // Load user profile and initialize seed data for first-time users
+    // Load user profile
     getUserProfile(user.uid).then(profile => {
       if (profile) {
         setTheme(profile.theme || 'light');
@@ -81,21 +109,6 @@ function App() {
         localStorage.setItem('expenwall_currency', DEFAULT_CURRENCY);
       }
     });
-
-    // Initialize seed data for first-time users
-    const initSeedDataAsync = async () => {
-      try {
-        setSeedDataLoading(true);
-        await initializeSeedData(user.uid);
-      } catch (error) {
-        console.error('Failed to initialize seed data:', error);
-      } finally {
-        setSeedDataLoading(false);
-      }
-    };
-
-    // Run initialization in background (non-blocking)
-    initSeedDataAsync();
 
     return () => {
       unsubTx();
@@ -221,8 +234,6 @@ function App() {
       drafts: [],
       isProcessing: false
     });
-    // Optional: Switch to transactions view
-    // setCurrentView('transactions'); 
   };
 
   if (loading) {
@@ -247,14 +258,6 @@ function App() {
   return (
     <ThemeProvider>
       <div className={`min-h-screen ${theme === 'dark' ? 'dark bg-slate-900' : 'bg-gradient-to-br from-indigo-50 via-white to-purple-50'}`}>
-        {/* Seed Data Loading Indicator */}
-        {seedDataLoading && (
-          <div className="fixed top-20 right-4 z-50 bg-indigo-600 text-white px-6 py-3 rounded-xl shadow-lg flex items-center space-x-3">
-            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-            <span className="text-sm font-medium">Setting up example data...</span>
-          </div>
-        )}
-
         {/* Header */}
         <header className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border-b border-slate-200 dark:border-slate-700 sticky top-0 z-40">
           <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
@@ -314,7 +317,7 @@ function App() {
 
             {/* Main Content */}
             <main className="flex-1 min-w-0">
-              {currentView === 'dashboard' && <Dashboard transactions={transactions} rules={rules} budgets={[]} />}
+              {currentView === 'dashboard' && <Dashboard transactions={transactions} rules={rules} budgets={DEFAULT_BUDGETS} />}
               
               {currentView === 'transactions' && (
                 <TransactionList
