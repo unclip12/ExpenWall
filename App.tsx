@@ -27,7 +27,7 @@ function App() {
   const [currentView, setCurrentView] = useState('dashboard');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
-  // Data states with explicit types to prevent 'never[]' errors
+  // Data states with explicit types
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [rules, setRules] = useState<MerchantRule[]>([]);
   const [wallets, setWallets] = useState<Wallet[]>([]);
