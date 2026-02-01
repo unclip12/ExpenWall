@@ -183,6 +183,18 @@ export const CravingsView: React.FC<CravingsViewProps> = ({
     });
   };
 
+  const handleDeleteCraving = async (cravingId: string, itemName: string) => {
+    const confirmed = confirm(`Are you sure you want to delete "${itemName}"?\n\nThis cannot be undone.`);
+    if (confirmed) {
+      try {
+        await onDeleteCraving(cravingId);
+      } catch (error) {
+        console.error('Failed to delete craving:', error);
+        alert('Failed to delete craving. Please try again.');
+      }
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Celebration Animation Overlay */}
@@ -461,9 +473,16 @@ export const CravingsView: React.FC<CravingsViewProps> = ({
                       </div>
 
                       <div className="text-right ml-4">
-                        <div className="text-2xl font-bold text-slate-800 dark:text-white">
+                        <div className="text-2xl font-bold text-slate-800 dark:text-white mb-2">
                           ₹{craving.totalAmount.toFixed(2)}
                         </div>
+                        <button
+                          onClick={() => handleDeleteCraving(craving.id, craving.items[0]?.name || 'this craving')}
+                          className="p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg text-red-500 transition-colors"
+                          title="Delete craving"
+                        >
+                          <Trash2 className="w-5 h-5" />
+                        </button>
                       </div>
                     </div>
 
