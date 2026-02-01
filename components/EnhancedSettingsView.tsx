@@ -6,10 +6,16 @@ import {
   CheckCircle, 
   Cpu,
   Save,
-  RefreshCw
+  RefreshCw,
+  Globe,
+  Wallet as WalletIcon,
+  Trash2,
+  Plus,
+  Loader2
 } from 'lucide-react';
-import { AI_PROVIDERS } from '../constants';
-import { getUserProfile, saveUserAISettings } from '../services/firestoreService';
+import { AI_PROVIDERS, CURRENCIES, DEFAULT_CURRENCY, THEME_OPTIONS } from '../constants';
+import { getUserProfile, saveUserAISettings, subscribeToWallets, addWalletToDb, deleteWalletFromDb } from '../services/firestoreService';
+import { Wallet, WalletType } from '../types';
 
 interface EnhancedSettingsViewProps {
   userId: string;
@@ -28,12 +34,23 @@ export const EnhancedSettingsView: React.FC<EnhancedSettingsViewProps> = ({
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [error, setError] = useState('');
 
+  // Currency & Wallet State
+  const [currency, setCurrency] = useState(DEFAULT_CURRENCY);
+  const [wallets, setWallets] = useState<Wallet[]>([]);
+  const [newWallet, setNewWallet] = useState({ name: '', type: 'bank' as WalletType });
+  const [isAddingWallet, setIsAddingWallet] = useState(false);
+
   useEffect(() => {
     loadUserSettings();
+    const unsub = subscribeToWallets(userId, setWallets);
+    return () => unsub();
   }, [userId]);
 
   const loadUserSettings = async () => {
     try {
+      const savedCurrency = localStorage.getItem('expenwall_currency');
+      if (savedCurrency) setCurrency(savedCurrency);
+
       const profile = await getUserProfile(userId);
       if (profile) {
         setGroqApiKey(profile.groqApiKey || '');
@@ -50,6 +67,8 @@ export const EnhancedSettingsView: React.FC<EnhancedSettingsViewProps> = ({
     setSaveSuccess(false);
 
     try {
+      localStorage.setItem('expenwall_currency', currency);
+
       await saveUserAISettings(userId, {
         aiProvider: selectedProvider,
         groqApiKey: selectedProvider === 'groq' ? groqApiKey : undefined,
@@ -63,6 +82,26 @@ export const EnhancedSettingsView: React.FC<EnhancedSettingsViewProps> = ({
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleAddWallet = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newWallet.name.trim()) return;
+
+    setIsAddingWallet(true);
+    try {
+      await addWalletToDb(newWallet, userId);
+      setNewWallet({ name: '', type: 'bank' });
+    } catch (error) {
+      console.error('Failed to add wallet:', error);
+    } finally {
+      setIsAddingWallet(false);
+    }
+  };
+
+  const handleDeleteWallet = async (id: string) => {
+    if (!confirm('Delete this wallet?')) return;
+    await deleteWalletFromDb(id);
   };
 
   const testConnection = async () => {
@@ -81,6 +120,90 @@ export const EnhancedSettingsView: React.FC<EnhancedSettingsViewProps> = ({
             <h1 className="text-4xl font-bold">Settings</h1>
             <p className="text-xl opacity-90">Customize your ExpenWall experience</p>
           </div>
+        </div>
+      </div>
+
+      {/* Currency Settings */}
+      <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl p-6 rounded-3xl shadow-xl border border-slate-200 dark:border-slate-700">
+        <div className="flex items-center space-x-3 mb-4">
+          <Globe className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
+          <h3 className="text-xl font-bold text-slate-800 dark:text-white">Currency</h3>
+        </div>
+        
+        <div className="space-y-4">
+          <select
+            value={currency}
+            onChange={(e) => setCurrency(e.target.value)}
+            className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+          >
+            {CURRENCIES.map(c => (
+              <option key={c.code} value={c.code}>
+                {c.flag} {c.name} ({c.symbol})
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* Wallet Management */}
+      <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl p-6 rounded-3xl shadow-xl border border-slate-200 dark:border-slate-700">
+        <div className="flex items-center space-x-3 mb-4">
+          <WalletIcon className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
+          <h3 className="text-xl font-bold text-slate-800 dark:text-white">Wallets</h3>
+        </div>
+
+        <form onSubmit={handleAddWallet} className="space-y-4 mb-6">
+          <div className="flex gap-3">
+            <input
+              type="text"
+              value={newWallet.name}
+              onChange={(e) => setNewWallet(prev => ({ ...prev, name: e.target.value }))}
+              placeholder="Wallet name (e.g. HDFC)"
+              className="flex-1 px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+            />
+            <select
+              value={newWallet.type}
+              onChange={(e) => setNewWallet(prev => ({ ...prev, type: e.target.value as WalletType }))}
+              className="px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+            >
+              <option value="bank">Bank</option>
+              <option value="cash">Cash</option>
+              <option value="credit">Credit Card</option>
+              <option value="digital">Digital Wallet</option>
+            </select>
+            <button
+              type="submit"
+              disabled={isAddingWallet}
+              className="px-4 py-3 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 disabled:opacity-50 transition-all flex items-center justify-center min-w-[50px]"
+            >
+              {isAddingWallet ? <Loader2 className="w-5 h-5 animate-spin" /> : <Plus className="w-5 h-5" />}
+            </button>
+          </div>
+        </form>
+
+        <div className="space-y-2">
+          {wallets.map(wallet => (
+            <div key={wallet.id} className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-700/50 rounded-xl border border-slate-100 dark:border-slate-700">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-white dark:bg-slate-800 rounded-lg">
+                  <WalletIcon className="w-4 h-4 text-slate-500" />
+                </div>
+                <div>
+                  <p className="font-bold text-slate-800 dark:text-white">{wallet.name}</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 capitalize">{wallet.type}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => handleDeleteWallet(wallet.id)}
+                className="p-2 text-slate-300 hover:text-red-500 dark:hover:text-red-400 transition-colors"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          ))}
+          {wallets.length === 0 && (
+            <p className="text-center text-slate-400 dark:text-slate-500 py-8 italic">No wallets added yet.</p>
+          )}
         </div>
       </div>
 
