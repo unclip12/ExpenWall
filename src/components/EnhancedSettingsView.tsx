@@ -1,15 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Settings, 
-  Zap, 
   Moon, 
   Sun, 
-  Eye, 
-  EyeOff, 
   CheckCircle, 
-  AlertCircle,
   Cpu,
-  Sparkles,
   Save,
   RefreshCw
 } from 'lucide-react';
@@ -28,10 +23,7 @@ export const EnhancedSettingsView: React.FC<EnhancedSettingsViewProps> = ({
   onThemeChange
 }) => {
   const [selectedProvider, setSelectedProvider] = useState<'gemini' | 'groq' | 'local'>('gemini');
-  const [geminiApiKey, setGeminiApiKey] = useState('');
   const [groqApiKey, setGroqApiKey] = useState('');
-  const [showGeminiKey, setShowGeminiKey] = useState(false);
-  const [showGroqKey, setShowGroqKey] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [error, setError] = useState('');
@@ -44,7 +36,6 @@ export const EnhancedSettingsView: React.FC<EnhancedSettingsViewProps> = ({
     try {
       const profile = await getUserProfile(userId);
       if (profile) {
-        setGeminiApiKey(profile.geminiApiKey || '');
         setGroqApiKey(profile.groqApiKey || '');
         setSelectedProvider(profile.aiProvider || 'gemini');
       }
@@ -61,7 +52,6 @@ export const EnhancedSettingsView: React.FC<EnhancedSettingsViewProps> = ({
     try {
       await saveUserAISettings(userId, {
         aiProvider: selectedProvider,
-        geminiApiKey: selectedProvider === 'gemini' ? geminiApiKey : undefined,
         groqApiKey: selectedProvider === 'groq' ? groqApiKey : undefined,
         updatedAt: new Date()
       });
@@ -137,53 +127,6 @@ export const EnhancedSettingsView: React.FC<EnhancedSettingsViewProps> = ({
           ))}
         </div>
 
-        {/* Gemini API Key */}
-        {selectedProvider === 'gemini' && (
-          <div className="space-y-4 p-6 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-slate-800 dark:to-slate-700 rounded-2xl border border-blue-200 dark:border-slate-600">
-            <div className="flex items-center space-x-2 text-indigo-800 dark:text-indigo-200 mb-3">
-              <Sparkles className="w-6 h-6" />
-              <h3 className="text-lg font-bold">Google Gemini Configuration</h3>
-            </div>
-            
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
-                Gemini API Key
-              </label>
-              <div className="relative">
-                <input
-                  type={showGeminiKey ? 'text' : 'password'}
-                  value={geminiApiKey}
-                  onChange={(e) => setGeminiApiKey(e.target.value)}
-                  placeholder="AIzaSy..."
-                  className="w-full px-4 py-3 pr-24 border border-indigo-200 dark:border-slate-600 rounded-2xl bg-white dark:bg-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowGeminiKey(!showGeminiKey)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-colors"
-                >
-                  {showGeminiKey ? (
-                    <EyeOff className="w-5 h-5 text-slate-500" />
-                  ) : (
-                    <Eye className="w-5 h-5 text-slate-500" />
-                  )}
-                </button>
-              </div>
-              <p className="text-xs text-slate-600 dark:text-slate-400 mt-2">
-                Get your free API key from{' '}
-                <a 
-                  href="https://aistudio.google.com/apikey" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="text-indigo-600 dark:text-indigo-400 hover:underline font-semibold"
-                >
-                  Google AI Studio
-                </a>
-              </p>
-            </div>
-          </div>
-        )}
-
         {/* Action Buttons */}
         <div className="flex gap-3 pt-6">
           <button
@@ -196,7 +139,7 @@ export const EnhancedSettingsView: React.FC<EnhancedSettingsViewProps> = ({
           
           <button
             onClick={handleSaveSettings}
-            disabled={isSaving || (selectedProvider === 'gemini' && !geminiApiKey)}
+            disabled={isSaving}
             className="flex-1 flex items-center justify-center space-x-2 px-6 py-3 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-2xl font-semibold hover:from-indigo-600 hover:to-purple-700 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isSaving ? (

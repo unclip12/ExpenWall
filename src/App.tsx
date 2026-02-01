@@ -13,7 +13,7 @@ import { PersonTransactionsView } from './components/PersonTransactionsView';
 import { 
   subscribeToTransactions, 
   subscribeToRules, 
-  subscribeToWallets,
+  subscribeToWallets, 
   subscribeToProducts,
   addTransactionToDb,
   deleteTransaction,
@@ -35,7 +35,6 @@ function App() {
   const [products, setProducts] = useState([]);
   const [shops, setShops] = useState([]);
   const [persons, setPersons] = useState([]);
-  const [apiKey, setApiKey] = useState('');
   const [theme, setTheme] = useState('light');
 
   useEffect(() => {
@@ -57,7 +56,6 @@ function App() {
     // Load user profile
     getUserProfile(user.uid).then(profile => {
       if (profile) {
-        setApiKey(profile.geminiApiKey || profile.apiKey || '');
         setTheme(profile.theme || 'light');
       }
     });
@@ -153,7 +151,7 @@ function App() {
 
             {/* Main Content */}
             <main className="flex-1">
-              {currentView === 'dashboard' && <Dashboard transactions={transactions} rules={rules} budgets={[]} apiKey={apiKey} />}
+              {currentView === 'dashboard' && <Dashboard transactions={transactions} rules={rules} budgets={[]} />}
               {currentView === 'transactions' && (
                 <TransactionList
                   transactions={transactions}

@@ -10,7 +10,6 @@ interface DashboardProps {
   transactions: Transaction[];
   rules: MerchantRule[];
   budgets: Budget[];
-  apiKey?: string;
 }
 
 const CATEGORY_ICONS: Record<string, string> = {
@@ -26,7 +25,7 @@ const CATEGORY_ICONS: Record<string, string> = {
 
 const PIE_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#64748b'];
 
-export const Dashboard: React.FC<DashboardProps> = ({ transactions, rules, budgets, apiKey }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ transactions, rules, budgets }) => {
   const currency = localStorage.getItem('expenwall_currency') || DEFAULT_CURRENCY;
   const currentSymbol = CURRENCIES.find(c => c.code === currency)?.symbol || '₹';
   const processedTransactions = useProcessedTransactions(transactions, rules);
@@ -147,7 +146,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, rules, budge
       </div>
 
       {/* AI Insights */}
-      <InsightsPanel transactions={transactions} apiKey={apiKey} />
+      <InsightsPanel transactions={transactions} />
 
       {/* Charts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
