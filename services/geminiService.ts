@@ -1,7 +1,7 @@
 import { GoogleGenAI, Type } from '@google/genai';
 import { ReceiptData, StatementData, DraftTransaction } from '../types';
 
-export const GEMINI_MODEL = 'gemini-flash-latest';
+export const GEMINI_MODEL = 'gemini-2.0-flash-exp';
 
 class GeminiService {
   private getAI(apiKey: string) {
