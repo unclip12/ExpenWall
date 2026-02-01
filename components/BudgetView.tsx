@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Target, Plus, Trash2, AlertCircle, TrendingUp, TrendingDown, Loader2, CheckCircle } from 'lucide-react';
+import { Target, Plus, Trash2, AlertCircle, TrendingUp, TrendingDown, Loader2, CheckCircle, PiggyBank } from 'lucide-react';
 import { Budget, BudgetStatus, Category, Transaction } from '../types';
 import { subscribeToBudgets, addBudget, updateBudget, deleteBudget } from '../services/firestoreService';
 import { CATEGORIES, CURRENCIES, DEFAULT_CURRENCY } from '../constants';
@@ -188,9 +188,14 @@ export const BudgetView: React.FC<BudgetViewProps> = ({ userId, transactions }) 
 
       {/* Budget Cards */}
       {budgetStatuses.length === 0 ? (
-        <div className="text-center py-16 bg-white dark:bg-slate-800 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700">
-          <Target className="w-16 h-16 mx-auto mb-4 text-slate-300 dark:text-slate-600 opacity-50" />
-          <p className="text-slate-500 dark:text-slate-400">No budgets set yet. Create one above!</p>
+        <div className="flex flex-col items-center justify-center py-20 bg-white dark:bg-slate-800 rounded-3xl border border-dashed border-slate-200 dark:border-slate-700 text-center animate-in fade-in duration-500">
+           <div className="w-24 h-24 bg-violet-50 dark:bg-slate-700/50 rounded-full flex items-center justify-center mb-6">
+             <PiggyBank className="w-12 h-12 text-violet-400 dark:text-violet-300" />
+           </div>
+           <h3 className="text-2xl font-bold text-slate-800 dark:text-white mb-2">No Budgets Set</h3>
+           <p className="text-slate-500 dark:text-slate-400 max-w-sm mb-6">
+             Set spending limits for categories like Food or Transport to keep your finances on track.
+           </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

@@ -107,6 +107,20 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ transactions, rule
     };
   }, [filteredTransactions]);
 
+  if (transactions.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[600px] bg-white dark:bg-slate-800 rounded-3xl border border-dashed border-slate-200 dark:border-slate-700 text-center animate-in fade-in duration-500 p-8">
+         <div className="w-32 h-32 bg-indigo-50 dark:bg-slate-700/50 rounded-full flex items-center justify-center mb-6">
+           <TrendingUp className="w-16 h-16 text-indigo-400 dark:text-indigo-300" />
+         </div>
+         <h3 className="text-3xl font-bold text-slate-800 dark:text-white mb-3">No Analytics Available</h3>
+         <p className="text-slate-500 dark:text-slate-400 max-w-md text-lg">
+           We need some data to crunch numbers! Once you start adding transactions, this dashboard will light up with insights.
+         </p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       {/* Header */}

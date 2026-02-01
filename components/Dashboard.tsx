@@ -1,7 +1,7 @@
 import React from 'react';
 import { Transaction, Category, MerchantRule, Budget } from '../types';
 import { PieChart, Pie, Tooltip, ResponsiveContainer, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts';
-import { ArrowUpRight, ArrowDownLeft, Wallet, TrendingUp } from 'lucide-react';
+import { ArrowUpRight, ArrowDownLeft, Wallet, TrendingUp, Sparkles, Receipt, BarChart3 } from 'lucide-react';
 import { CURRENCIES, DEFAULT_CURRENCY } from '../constants';
 import { useProcessedTransactions } from '../hooks';
 import { InsightsPanel } from './InsightsPanel';
@@ -94,6 +94,25 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, rules, budge
 
   return (
     <div className="space-y-6 animate-in fade-in duration-700">
+      {/* Welcome Banner for Empty State */}
+      {transactions.length === 0 && (
+        <div className="bg-gradient-to-r from-indigo-600 to-violet-600 rounded-3xl p-8 text-white shadow-xl relative overflow-hidden">
+           <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-20 -mt-20 blur-3xl"></div>
+           <div className="relative z-10">
+             <div className="flex items-center space-x-3 mb-4">
+               <div className="p-3 bg-white/20 backdrop-blur-md rounded-2xl">
+                 <Sparkles className="w-6 h-6 text-white" />
+               </div>
+               <span className="font-bold text-indigo-100 uppercase tracking-wider text-sm">Welcome to ExpenWall</span>
+             </div>
+             <h2 className="text-3xl font-bold mb-4">Start your financial journey</h2>
+             <p className="text-indigo-100 max-w-lg text-lg leading-relaxed">
+               Your dashboard is looking a bit empty! Tap the <span className="font-bold bg-white/20 px-2 py-0.5 rounded">Add New</span> button in the menu to log your first expense, scan a receipt, or set up a budget.
+             </p>
+           </div>
+        </div>
+      )}
+
       {/* Budget Warnings */}
       {budgetWarnings.length > 0 && (
         <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 p-4 rounded-2xl">
@@ -193,8 +212,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, rules, budge
               </div>
             </div>
           ) : (
-            <div className="h-64 w-full flex items-center justify-center text-slate-400 dark:text-slate-500">
-              <p>No expenses recorded yet.</p>
+            <div className="h-64 w-full flex flex-col items-center justify-center text-slate-400 dark:text-slate-500 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl">
+              <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-full mb-3">
+                <PieChartIcon className="w-8 h-8 opacity-50" />
+              </div>
+              <p className="font-medium">No expense data</p>
+              <p className="text-xs mt-1">Add expenses to see breakdown</p>
             </div>
           )}
         </div>
@@ -202,25 +225,35 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, rules, budge
         {/* 7-Day Trend */}
         <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl p-8 rounded-3xl shadow-lg border border-white/20 dark:border-slate-700/20">
           <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-6">7-Day Spending Trend</h3>
-          <div className="h-64 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={trendData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis dataKey="date" stroke="#64748b" style={{ fontSize: '12px' }} />
-                <YAxis stroke="#64748b" style={{ fontSize: '12px' }} />
-                <Tooltip
-                  formatter={(value: number) => `${currentSymbol}${value.toFixed(2)}`}
-                  contentStyle={{
-                    borderRadius: '12px',
-                    border: '1px solid rgba(255,255,255,0.5)',
-                    background: 'rgba(255,255,255,0.9)',
-                    backdropFilter: 'blur(10px)',
-                  }}
-                />
-                <Line type="monotone" dataKey="expense" stroke="#6366f1" strokeWidth={3} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
+          {trendData.some(d => d.expense > 0) ? (
+            <div className="h-64 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={trendData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                  <XAxis dataKey="date" stroke="#64748b" style={{ fontSize: '12px' }} />
+                  <YAxis stroke="#64748b" style={{ fontSize: '12px' }} />
+                  <Tooltip
+                    formatter={(value: number) => `${currentSymbol}${value.toFixed(2)}`}
+                    contentStyle={{
+                      borderRadius: '12px',
+                      border: '1px solid rgba(255,255,255,0.5)',
+                      background: 'rgba(255,255,255,0.9)',
+                      backdropFilter: 'blur(10px)',
+                    }}
+                  />
+                  <Line type="monotone" dataKey="expense" stroke="#6366f1" strokeWidth={3} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div className="h-64 w-full flex flex-col items-center justify-center text-slate-400 dark:text-slate-500 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl">
+               <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-full mb-3">
+                <BarChart3 className="w-8 h-8 opacity-50" />
+              </div>
+              <p className="font-medium">No trend data</p>
+              <p className="text-xs mt-1">Spending history will appear here</p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -247,12 +280,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, rules, budge
                 <p className={`font-bold text-sm ${t.type === 'income' ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-800 dark:text-white'}`}>
                   {t.type === 'income' ? '+' : '-'}{currentSymbol}{t.amount.toFixed(2)}
                 </p>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">{t.displayCategory}</p>
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">{t.displayCategory}</p>
               </div>
             </div>
           )) : (
-            <div className="p-8 text-center text-slate-400 dark:text-slate-500 text-sm bg-slate-50/50 dark:bg-slate-900/20 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700">
-              No recent activity.
+            <div className="p-8 flex flex-col items-center justify-center text-center text-slate-400 dark:text-slate-500 bg-slate-50/50 dark:bg-slate-900/20 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700">
+              <Receipt className="w-12 h-12 mb-3 opacity-30" />
+              <p className="font-medium">No recent activity</p>
+              <p className="text-sm mt-1">Your latest transactions will show up here.</p>
             </div>
           )}
         </div>
@@ -260,3 +295,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ transactions, rules, budge
     </div>
   );
 };
+
+// Helper icon
+const PieChartIcon = ({ className }: { className?: string }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>
+);
