@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, Image as ImageIcon, CheckCircle, XCircle, TrendingUp, TrendingDown, Sparkles, Calendar, ShoppingBag, Zap, Trash2, Clock } from 'lucide-react';
+import { Upload, Image as ImageIcon, CheckCircle, XCircle, TrendingUp, TrendingDown, Sparkles, Calendar, ShoppingBag, Zap, Trash2, Clock, Award, Trophy, Medal, Crown } from 'lucide-react';
 import { Craving, CravingStats, CravingOutcome } from '../types';
 import { CelebrationAnimation } from './CelebrationAnimation';
 import { formatCurrency } from '../utils/transactionUtils';
@@ -10,6 +10,12 @@ interface CravingsViewProps {
   onAddCraving: (craving: Omit<Craving, 'id'>) => Promise<void>;
   onUpdateOutcome: (id: string, outcome: CravingOutcome) => Promise<void>;
   onDeleteCraving: (id: string) => Promise<void>;
+}
+
+interface ItemRanking {
+  name: string;
+  count: number;
+  totalAmount: number;
 }
 
 export const CravingsView: React.FC<CravingsViewProps> = ({
@@ -30,7 +36,7 @@ export const CravingsView: React.FC<CravingsViewProps> = ({
     notes: ''
   });
 
-  // Calculate stats
+  // Calculate stats and rankings
   const stats: CravingStats = cravings.reduce((acc, craving) => {
     acc.totalCravings++;
     
@@ -42,7 +48,7 @@ export const CravingsView: React.FC<CravingsViewProps> = ({
       acc.gaveInCount++;
     }
 
-    // Track most craved items
+    // Track most craved items (all items)
     craving.items.forEach(item => {
       const existing = acc.mostCravedItems.find(i => i.name === item.name);
       if (existing) {
@@ -68,11 +74,107 @@ export const CravingsView: React.FC<CravingsViewProps> = ({
     mostCravedItems: [] as { name: string; count: number; totalAmount: number }[]
   });
 
+  // Calculate Resistance Champions (items that were resisted)
+  const resistanceChampions: ItemRanking[] = [];
+  cravings.forEach(craving => {
+    if (craving.outcome === 'resisted') {
+      craving.items.forEach(item => {
+        const existing = resistanceChampions.find(i => i.name === item.name);
+        if (existing) {
+          existing.count++;
+          existing.totalAmount += item.price * item.quantity;
+        } else {
+          resistanceChampions.push({
+            name: item.name,
+            count: 1,
+            totalAmount: item.price * item.quantity
+          });
+        }
+      });
+    }
+  });
+  resistanceChampions.sort((a, b) => b.count - a.count);
+
+  // Calculate Weakness Zone (items that user gave in to)
+  const weaknessZone: ItemRanking[] = [];
+  cravings.forEach(craving => {
+    if (craving.outcome === 'gave_in') {
+      craving.items.forEach(item => {
+        const existing = weaknessZone.find(i => i.name === item.name);
+        if (existing) {
+          existing.count++;
+          existing.totalAmount += item.price * item.quantity;
+        } else {
+          weaknessZone.push({
+            name: item.name,
+            count: 1,
+            totalAmount: item.price * item.quantity
+          });
+        }
+      });
+    }
+  });
+  weaknessZone.sort((a, b) => b.count - a.count);
+
   stats.resistanceRate = stats.totalCravings > 0 
     ? Math.round((stats.resistedCount / stats.totalCravings) * 100) 
     : 0;
 
   stats.mostCravedItems.sort((a, b) => b.count - a.count);
+
+  // Helper function to get medal emoji
+  const getMedal = (position: number) => {
+    if (position === 0) return '👑'; // Crown for #1
+    if (position === 1) return '🥈'; // Silver
+    if (position === 2) return '🥉'; // Bronze
+    return `${position + 1}`;
+  };
+
+  // Helper function to get medal gradient
+  const getMedalGradient = (position: number) => {
+    if (position === 0) return 'from-yellow-400 to-orange-500'; // Gold
+    if (position === 1) return 'from-slate-300 to-slate-500'; // Silver
+    if (position === 2) return 'from-orange-400 to-orange-600'; // Bronze
+    return 'from-slate-200 to-slate-400';
+  };
+
+  // Render ranking card
+  const RankingCard = ({ title, items, icon: Icon, color, emptyMessage }: {
+    title: string;
+    items: ItemRanking[];
+    icon: any;
+    color: string;
+    emptyMessage: string;
+  }) => (
+    <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700">
+      <h3 className={`text-lg font-bold text-slate-800 dark:text-white mb-4 flex items-center space-x-2`}>
+        <Icon className={`w-5 h-5 ${color}`} />
+        <span>{title}</span>
+      </h3>
+      {items.length === 0 ? (
+        <p className="text-slate-500 dark:text-slate-400 text-sm italic text-center py-4">{emptyMessage}</p>
+      ) : (
+        <div className="space-y-2">
+          {items.slice(0, 5).map((item, idx) => (
+            <div key={idx} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-700 rounded-xl hover:scale-102 transition-transform">
+              <div className="flex items-center space-x-3">
+                <div className={`w-10 h-10 bg-gradient-to-br ${getMedalGradient(idx)} rounded-full flex items-center justify-center shadow-lg`}>
+                  <span className="text-xl">{getMedal(idx)}</span>
+                </div>
+                <div>
+                  <span className="font-medium text-slate-800 dark:text-white block">{item.name}</span>
+                  <span className="text-xs text-slate-500 dark:text-slate-400">{item.count}x occurrences</span>
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="font-bold text-slate-800 dark:text-white">{formatCurrency(item.totalAmount)}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 
   // Group by date
   const groupedByDate = cravings.reduce((acc, craving) => {
@@ -260,31 +362,35 @@ export const CravingsView: React.FC<CravingsViewProps> = ({
         </div>
       </div>
 
-      {/* Most Craved Items */}
-      {stats.mostCravedItems.length > 0 && (
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700">
-          <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-4 flex items-center space-x-2">
-            <TrendingUp className="w-5 h-5 text-orange-500" />
-            <span>Most Craved Items</span>
-          </h3>
-          <div className="space-y-2">
-            {stats.mostCravedItems.slice(0, 5).map((item, idx) => (
-              <div key={idx} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-700 rounded-xl">
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-gradient-to-br from-orange-400 to-red-500 rounded-full flex items-center justify-center text-white font-bold">
-                    {idx + 1}
-                  </div>
-                  <span className="font-medium text-slate-800 dark:text-white">{item.name}</span>
-                </div>
-                <div className="text-right">
-                  <div className="text-sm text-slate-600 dark:text-slate-400">{item.count}x craved</div>
-                  <div className="font-bold text-slate-800 dark:text-white">{formatCurrency(item.totalAmount)}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* Three Ranking Sections */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Overall Most Craved Items */}
+        <RankingCard
+          title="Overall Temptations"
+          items={stats.mostCravedItems}
+          icon={TrendingUp}
+          color="text-orange-500"
+          emptyMessage="No cravings logged yet. Start tracking!"
+        />
+
+        {/* Resistance Champions */}
+        <RankingCard
+          title="Resistance Champions"
+          items={resistanceChampions}
+          icon={Trophy}
+          color="text-emerald-500"
+          emptyMessage="No resisted cravings yet. You can do it!"
+        />
+
+        {/* Weakness Zone */}
+        <RankingCard
+          title="Weakness Zone"
+          items={weaknessZone}
+          icon={TrendingDown}
+          color="text-red-500"
+          emptyMessage="Great! You haven't given in to any cravings yet!"
+        />
+      </div>
 
       {/* Add New Craving Form */}
       {showAddForm && (
