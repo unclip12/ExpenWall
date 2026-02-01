@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { auth } from './firebase';
-import { Transaction, MerchantRule, BuyingItem, Wallet, AnalyzerState, DraftTransaction, RecurringTransaction, Budget } from './types';
+import { Transaction, MerchantRule, BuyingItem, Wallet, AnalyzerState, DraftTransaction, RecurringTransaction, Budget, Category } from './types';
 import { 
   subscribeToTransactions, 
   subscribeToRules, 
@@ -9,7 +9,10 @@ import {
   addTransactionToDb,
   addTransactionsBatch,
   subscribeToRecurringTransactions,
-  subscribeToBudgets
+  subscribeToBudgets,
+  updateTransactionInDb,
+  deleteTransactionFromDb,
+  addMerchantRule
 } from './services/firestoreService';
 import { geminiService } from './services/geminiService';
 import { NAV_ITEMS } from './constants';
@@ -44,6 +47,9 @@ function App() {
   const [recurring, setRecurring] = useState<RecurringTransaction[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [apiKey, setApiKey] = useState<string | undefined>(undefined);
+
+  // Editing State
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
 
   // Analyzer State
   const [analyzerState, setAnalyzerState] = useState<AnalyzerState>({
@@ -189,10 +195,37 @@ function App() {
     setAnalyzerState({ messages: [{ role: 'bot', text: 'Transactions saved! Upload more or clear.' }], drafts: [], isProcessing: false });
   };
 
-  const handleAddTransaction = async (tx: Omit<Transaction, 'id'>) => {
+  const handleSaveTransaction = async (tx: Omit<Transaction, 'id'>) => {
     if (!user) return;
-    await addTransactionToDb(tx, user.uid);
+    if (editingTransaction) {
+      await updateTransactionInDb(editingTransaction.id, tx);
+      setEditingTransaction(null);
+    } else {
+      await addTransactionToDb(tx, user.uid);
+    }
     setCurrentView('transactions');
+  };
+
+  const handleEditTransaction = (tx: Transaction) => {
+    setEditingTransaction(tx);
+    setCurrentView('add');
+  };
+
+  const handleDeleteTransaction = async (id: string) => {
+    if (confirm("Are you sure you want to delete this transaction?")) {
+      await deleteTransactionFromDb(id);
+    }
+  };
+
+  const handleCreateRule = async (original: string, renamed: string, category?: Category, subcategory?: string) => {
+    if (!user) return;
+    await addMerchantRule({
+      originalName: original,
+      renamedTo: renamed,
+      forcedCategory: category,
+      forcedSubcategory: subcategory,
+      userId: user.uid
+    });
   };
 
   const handleNaturalInputSubmit = async (data: any) => {
@@ -274,6 +307,7 @@ function App() {
                         key={item.id}
                         onClick={() => {
                           setCurrentView(item.id);
+                          setEditingTransaction(null);
                           setIsMobileMenuOpen(false);
                         }}
                         className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl font-medium transition-all ${
@@ -294,11 +328,33 @@ function App() {
             {/* Main Content */}
             <main className="flex-1 min-w-0">
               {currentView === 'dashboard' && <Dashboard transactions={transactions} rules={rules} budgets={budgets} apiKey={apiKey} />}
-              {currentView === 'transactions' && <TransactionList transactions={transactions} rules={rules} userId={user.uid} wallets={wallets} />}
+              {currentView === 'transactions' && (
+                <TransactionList 
+                  transactions={transactions} 
+                  rules={rules} 
+                  userId={user.uid} 
+                  wallets={wallets} 
+                  onEditTransaction={handleEditTransaction}
+                  onDeleteTransaction={handleDeleteTransaction}
+                  onCreateRule={handleCreateRule}
+                />
+              )}
               {currentView === 'analytics' && <AnalyticsView transactions={transactions} rules={rules} />}
               {currentView === 'budgets' && <BudgetView userId={user.uid} transactions={transactions} />}
               {currentView === 'recurring' && <RecurringView userId={user.uid} />}
-              {currentView === 'add' && <TransactionForm onSubmit={handleAddTransaction} onCancel={() => setCurrentView('dashboard')} apiKey={apiKey} onOpenSettings={() => setCurrentView('settings')} wallets={wallets} />}
+              {currentView === 'add' && (
+                <TransactionForm 
+                  onSubmit={handleSaveTransaction} 
+                  onCancel={() => { 
+                    setEditingTransaction(null); 
+                    setCurrentView('dashboard'); 
+                  }} 
+                  apiKey={apiKey} 
+                  onOpenSettings={() => setCurrentView('settings')} 
+                  wallets={wallets} 
+                  initialData={editingTransaction || undefined}
+                />
+              )}
               {currentView === 'analyzer' && <AnalyzerView apiKey={apiKey} state={analyzerState} onStateChange={(s) => setAnalyzerState(prev => ({ ...prev, ...s }))} onSaveTransactions={handleSaveTransactions} onAnalyzeImage={handleAnalyzeImage} onSendMessage={handleSendMessage} />}
               {currentView === 'buying-list' && <BuyingListView items={buyingList} userId={user.uid} />}
               {currentView === 'export' && <ExportView transactions={transactions} rules={rules} />}

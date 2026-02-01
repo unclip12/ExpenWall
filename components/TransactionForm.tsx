@@ -10,21 +10,24 @@ interface TransactionFormProps {
   apiKey?: string;
   onOpenSettings?: () => void;
   wallets?: Wallet[];
+  initialData?: Transaction;
 }
 
-export const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit, onCancel, apiKey, onOpenSettings, wallets = [] }) => {
+export const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit, onCancel, apiKey, onOpenSettings, wallets = [], initialData }) => {
   // Initialize form with preferred currency
   const [formData, setFormData] = useState<Omit<Transaction, 'id'>>({
-    merchant: '',
-    date: new Date().toISOString().split('T')[0],
-    amount: 0,
-    currency: localStorage.getItem('expenwall_currency') || DEFAULT_CURRENCY,
-    category: Category.OTHER,
-    type: 'expense', 
-    notes: '',
-    items: [],
-    receiptUrl: '',
-    walletId: wallets.length > 0 ? wallets[0].id : ''
+    merchant: initialData?.merchant ?? '',
+    date: initialData?.date ?? new Date().toISOString().split('T')[0],
+    amount: initialData?.amount ?? 0,
+    currency: initialData?.currency ?? (localStorage.getItem('expenwall_currency') || DEFAULT_CURRENCY),
+    category: initialData?.category ?? Category.OTHER,
+    subcategory: initialData?.subcategory ?? '',
+    type: initialData?.type ?? 'expense', 
+    notes: initialData?.notes ?? '',
+    items: initialData?.items ?? [],
+    receiptUrl: initialData?.receiptUrl ?? '',
+    walletId: initialData?.walletId ?? (wallets.length > 0 ? wallets[0].id : ''),
+    tags: initialData?.tags ?? []
   });
 
   const [isScanning, setIsScanning] = useState(false);
@@ -185,8 +188,8 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit, onCa
     <div className="max-w-2xl mx-auto bg-white/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 overflow-hidden animate-in zoom-in-95 duration-300">
       <div className="p-6 bg-white/50 border-b border-white/20 flex justify-between items-center">
         <div>
-          <h2 className="text-xl font-bold text-slate-800">Add Transaction</h2>
-          <p className="text-sm text-slate-500">Log expense or income</p>
+          <h2 className="text-xl font-bold text-slate-800">{initialData ? 'Edit Transaction' : 'Add Transaction'}</h2>
+          <p className="text-sm text-slate-500">{initialData ? 'Update details' : 'Log expense or income'}</p>
         </div>
         <button onClick={onCancel} className="p-2 rounded-full hover:bg-slate-200/50 transition-colors">
           <X className="w-6 h-6 text-slate-500" />
@@ -218,7 +221,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit, onCa
            </button>
         </div>
 
-        {/* File Upload */}
+        {/* File Upload - Only show if not editing or if we want to allow re-scan (optional, but keep it for now) */}
         <div className="bg-indigo-50/50 border-2 border-dashed border-indigo-200/60 rounded-2xl p-6 text-center transition-all hover:bg-indigo-50 hover:border-indigo-300 relative">
           
           <div className="absolute top-2 right-2 flex items-center space-x-1 bg-white/80 backdrop-blur px-2 py-1 rounded text-[10px] text-indigo-500 font-medium border border-indigo-100 shadow-sm">
@@ -422,7 +425,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit, onCa
               }`}
             >
               <Check className="w-5 h-5 mr-2" />
-              Save
+              {initialData ? 'Update' : 'Save'}
             </button>
           </div>
         </form>

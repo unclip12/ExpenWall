@@ -7,6 +7,10 @@ export enum Category {
   HEALTH = 'Health & Fitness',
   GROCERIES = 'Groceries',
   INCOME = 'Income',
+  EDUCATION = 'Education',
+  PERSONAL_CARE = 'Personal Care',
+  GOVERNMENT = 'Government & Official',
+  BANKING = 'Banking & Finance',
   OTHER = 'Other'
 }
 
@@ -14,6 +18,9 @@ export type TransactionType = 'expense' | 'income';
 export type WalletType = 'bank' | 'cash' | 'credit' | 'digital';
 export type RecurringFrequency = 'daily' | 'weekly' | 'monthly' | 'yearly';
 export type ThemeMode = 'light' | 'dark' | 'system';
+export type PersonType = 'friend' | 'family' | 'pg_owner' | 'landlord' | 'shop_owner' | 'colleague' | 'other';
+export type PropertyType = 'pg' | 'rental' | 'own_house' | 'office' | 'other';
+export type UnitType = 'gram' | 'kg' | 'ml' | 'litre' | 'piece' | 'packet' | 'box' | 'other';
 
 export interface Wallet {
   id: string;
@@ -24,9 +31,46 @@ export interface Wallet {
   createdAt?: any;
 }
 
+export interface ShopLocation {
+  shopName: string;
+  area?: string;
+  city?: string;
+  lastVisited?: string;
+}
+
+export interface Person {
+  id: string;
+  name: string;
+  type: PersonType;
+  phoneNumber?: string;
+  email?: string;
+  notes?: string;
+  propertyName?: string;
+  totalReceived: number;
+  totalSent: number;
+  balance: number;
+}
+
 export interface TransactionItem {
   name: string;
+  brand?: string;
   price: number;
+  quantity: number;
+  weight?: number;
+  weightUnit?: UnitType;
+  mrp?: number;
+  discount?: number;
+  tax?: number;
+  pricePerUnit?: number;
+}
+
+export interface UtilityDetails {
+  type: 'electricity' | 'water' | 'gas' | 'internet' | 'mobile' | 'dth';
+  units?: number;
+  pricePerUnit?: number;
+  propertyType?: PropertyType;
+  propertyName?: string;
+  meterNumber?: string;
 }
 
 export interface SplitPerson {
@@ -40,10 +84,14 @@ export interface Transaction {
   id: string;
   userId?: string;
   merchant: string;
+  merchantEmoji?: string;
+  shopLocation?: ShopLocation;
   date: string;
+  time?: string;
   amount: number;
   currency: string;
   category: Category;
+  subcategory?: string;
   type: TransactionType;
   walletId?: string;
   items?: TransactionItem[];
@@ -52,6 +100,9 @@ export interface Transaction {
   receiptUrl?: string;
   isRecurring?: boolean;
   recurringId?: string;
+  personId?: string;
+  personName?: string;
+  utilityDetails?: UtilityDetails;
   splitBill?: {
     people: SplitPerson[];
     totalPeople: number;
@@ -65,6 +116,7 @@ export interface RecurringTransaction {
   amount: number;
   currency: string;
   category: Category;
+  subcategory?: string;
   type: TransactionType;
   walletId?: string;
   frequency: RecurringFrequency;
@@ -82,6 +134,7 @@ export interface Budget {
   id: string;
   userId: string;
   category: Category;
+  subcategory?: string;
   amount: number;
   period: 'weekly' | 'monthly';
   startDate: string;
@@ -108,13 +161,53 @@ export interface BuyingItem {
   createdAt?: any;
 }
 
+export interface Product {
+  id: string;
+  name: string;
+  emoji?: string;
+  brand?: string;
+  category: Category;
+  subcategory?: string;
+  avgPrice: number;
+  lowestPrice: number;
+  highestPrice: number;
+  totalPurchases: number;
+  lastPurchased: string;
+  shops: {
+    shopName: string;
+    area?: string;
+    avgPrice: number;
+    lastPrice: number;
+    lastPurchased: string;
+  }[];
+}
+
+export interface PriceHistory {
+  productName: string;
+  brand?: string;
+  weight?: number;
+  weightUnit?: UnitType;
+  price: number;
+  mrp?: number;
+  shopName: string;
+  area?: string;
+  date: string;
+  transactionId: string;
+}
+
 export interface ReceiptData {
   merchant: string;
   date: string;
   totalAmount: number;
   currency?: string;
   category: string;
+  subcategory?: string;
   items: TransactionItem[];
+  tax?: {
+    cgst?: number;
+    sgst?: number;
+    total?: number;
+  };
 }
 
 export interface StatementData {
@@ -124,12 +217,20 @@ export interface StatementData {
     amount: number;
     type: TransactionType;
     category: string;
+    subcategory?: string;
   }[];
 }
 
 export interface UserProfile {
   apiKey?: string;
+  groqApiKey?: string;
+  openaiApiKey?: string;
+  receiptScanAI?: 'gemini' | 'groq' | 'openai';
+  emojiDetectionAI?: 'gemini' | 'groq' | 'local';
+  categoryDetectionAI?: 'gemini' | 'groq' | 'local';
+  insightsAI?: 'gemini' | 'groq';
   theme?: ThemeMode;
+  preferredCity?: string;
   updatedAt?: any;
 }
 
@@ -140,6 +241,7 @@ export interface DraftTransaction {
   amount: number;
   type: TransactionType;
   category: string;
+  subcategory?: string;
 }
 
 export interface AnalyzerState {
@@ -159,12 +261,16 @@ export interface MerchantRule {
   originalName: string;
   renamedTo: string;
   forcedCategory?: Category;
+  forcedSubcategory?: string;
+  emoji?: string;
   createdAt?: any;
 }
 
 export interface ProcessedTransaction extends Transaction {
   displayMerchant: string;
   displayCategory: Category;
+  displaySubcategory?: string;
+  displayEmoji?: string;
   isAliased: boolean;
 }
 
@@ -193,4 +299,11 @@ export interface DateRangeFilter {
   startDate: string;
   endDate: string;
   preset?: 'week' | 'month' | '3months' | 'year' | 'custom';
+}
+
+export interface SubcategorySuggestion {
+  subcategory: string;
+  category: Category;
+  emoji: string;
+  confidence: number;
 }

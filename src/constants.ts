@@ -1,88 +1,4 @@
-import { Category, ThemeMode } from './types';
-import { LayoutDashboard, PlusCircle, Receipt, Settings, ShoppingCart, Bot, Sparkles, TrendingUp, RefreshCw, Target, FileText, Package } from 'lucide-react';
-
-export const CATEGORIES = Object.values(Category);
-
-export const NAV_ITEMS = [
-  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { id: 'transactions', label: 'Transactions', icon: Receipt },
-  { id: 'products', label: 'Products', icon: Package },
-  { id: 'analytics', label: 'Analytics', icon: TrendingUp },
-  { id: 'budgets', label: 'Budgets', icon: Target },
-  { id: 'recurring', label: 'Recurring', icon: RefreshCw },
-  { id: 'add', label: 'Add New', icon: PlusCircle },
-  { id: 'analyzer', label: 'Analyzer', icon: Bot },
-  { id: 'buying-list', label: 'Buying List', icon: ShoppingCart },
-  { id: 'export', label: 'Export', icon: FileText },
-  { id: 'rules', label: 'Smart Rules', icon: Sparkles },
-  { id: 'settings', label: 'Settings', icon: Settings },
-];
-
-export const DEFAULT_CURRENCY = 'INR';
-
-export const CURRENCIES = [
-  { code: 'INR', symbol: '₹', name: 'Indian Rupee', flag: '🇮🇳' },
-  { code: 'USD', symbol: '$', name: 'United States Dollar', flag: '🇺🇸' },
-  { code: 'EUR', symbol: '€', name: 'Euro', flag: '🇪🇺' },
-  { code: 'GBP', symbol: '£', name: 'British Pound Sterling', flag: '🇬🇧' },
-  { code: 'AED', symbol: 'dh', name: 'UAE Dirham', flag: '🇦🇪' },
-];
-
-export const DATE_RANGE_PRESETS = [
-  { id: 'week', label: 'This Week', days: 7 },
-  { id: 'month', label: 'This Month', days: 30 },
-  { id: '3months', label: 'Last 3 Months', days: 90 },
-  { id: 'year', label: 'This Year', days: 365 },
-  { id: 'custom', label: 'Custom Range', days: 0 },
-];
-
-export const RECURRING_FREQUENCIES = [
-  { value: 'daily', label: 'Daily' },
-  { value: 'weekly', label: 'Weekly' },
-  { value: 'monthly', label: 'Monthly' },
-  { value: 'yearly', label: 'Yearly' },
-];
-
-export const THEME_OPTIONS: { value: ThemeMode; label: string }[] = [
-  { value: 'light', label: 'Light' },
-  { value: 'dark', label: 'Dark' },
-  { value: 'system', label: 'System' },
-];
-
-export const UNIT_TYPES = [
-  { value: 'gram', label: 'Gram (g)' },
-  { value: 'kg', label: 'Kilogram (kg)' },
-  { value: 'ml', label: 'Millilitre (ml)' },
-  { value: 'litre', label: 'Litre (L)' },
-  { value: 'piece', label: 'Piece' },
-  { value: 'packet', label: 'Packet' },
-  { value: 'box', label: 'Box' },
-  { value: 'other', label: 'Other' },
-];
-
-export const PERSON_TYPES = [
-  { value: 'friend', label: 'Friend' },
-  { value: 'family', label: 'Family' },
-  { value: 'pg_owner', label: 'PG Owner' },
-  { value: 'landlord', label: 'Landlord' },
-  { value: 'shop_owner', label: 'Shop Owner' },
-  { value: 'colleague', label: 'Colleague' },
-  { value: 'other', label: 'Other' },
-];
-
-export const PROPERTY_TYPES = [
-  { value: 'pg', label: 'PG/Hostel' },
-  { value: 'rental', label: 'Rental House' },
-  { value: 'own_house', label: 'Own House' },
-  { value: 'office', label: 'Office' },
-  { value: 'other', label: 'Other' },
-];
-
-export const AI_PROVIDERS = [
-  { value: 'gemini', label: 'Google Gemini 2.0 Flash', free: true, recommended: true },
-  { value: 'groq', label: 'Groq (Llama 3.1)', free: true, fast: true },
-  { value: 'local', label: 'Local ML (Offline)', free: true, offline: true },
-];
+import { Category } from './types';
 
 // CATEGORY EMOJIS
 export const CATEGORY_EMOJIS: Record<string, string> = {
@@ -765,3 +681,128 @@ export const SUBCATEGORY_KEYWORDS: Record<string, { category: string; subcategor
   'mobile': { category: 'Utilities', subcategory: 'Mobile Recharge', emoji: '📱' },
   'recharge': { category: 'Utilities', subcategory: 'Mobile Recharge', emoji: '📱' },
 };
+
+export const AI_PROVIDERS = [
+  {
+    value: 'gemini',
+    label: 'Google Gemini',
+    description: '2.0 Flash - Best for receipt scanning & vision',
+    free: true,
+    recommended: true,
+    dailyLimit: '1,500 requests/day'
+  },
+  {
+    value: 'groq',
+    label: 'Groq (Llama 3.3)',
+    description: 'Lightning fast - Perfect for emoji & categorization',
+    free: true,
+    recommended: false,
+    dailyLimit: '14,400 requests/day'
+  },
+  {
+    value: 'local',
+    label: 'Offline Mode',
+    description: 'Basic keyword matching - No API required',
+    free: true,
+    recommended: false,
+    dailyLimit: 'Unlimited'
+  }
+];
+
+export const CATEGORIES = [
+  'Food & Dining',
+  'Transportation',
+  'Utilities',
+  'Entertainment',
+  'Shopping',
+  'Health & Fitness',
+  'Groceries',
+  'Income',
+  'Education',
+  'Personal Care',
+  'Government & Official',
+  'Banking & Finance',
+  'Other'
+];
+
+export const DATE_RANGE_PRESETS = [
+  { id: 'week', label: 'Last 7 Days', days: 7 },
+  { id: 'month', label: 'Last 30 Days', days: 30 },
+  { id: 'quarter', label: 'Last 90 Days', days: 90 },
+  { id: 'year', label: 'Last 365 Days', days: 365 },
+  { id: 'custom', label: 'Custom Range', days: 0 }
+];
+
+export const UNIT_TYPES = [
+  { value: 'gram', label: 'Gram (g)' },
+  { value: 'kg', label: 'Kilogram (kg)' },
+  { value: 'ml', label: 'Millilitre (ml)' },
+  { value: 'litre', label: 'Litre (L)' },
+  { value: 'piece', label: 'Piece' },
+  { value: 'packet', label: 'Packet' },
+  { value: 'box', label: 'Box' },
+  { value: 'other', label: 'Other' }
+];
+
+export const PERSON_TYPES = [
+  { value: 'friend', label: 'Friend' },
+  { value: 'family', label: 'Family' },
+  { value: 'pg_owner', label: 'PG Owner' },
+  { value: 'landlord', label: 'Landlord' },
+  { value: 'shop_owner', label: 'Shop Owner' },
+  { value: 'colleague', label: 'Colleague' },
+  { value: 'other', label: 'Other' }
+];
+
+export const PROPERTY_TYPES = [
+  { value: 'pg', label: 'PG/Hostel' },
+  { value: 'rental', label: 'Rental House' },
+  { value: 'own_house', label: 'Own House' },
+  { value: 'office', label: 'Office' },
+  { value: 'other', label: 'Other' }
+];
+
+export const CURRENCIES = [
+  { code: 'INR', name: 'Indian Rupee', symbol: '₹', flag: '🇮🇳' },
+  { code: 'USD', name: 'US Dollar', symbol: '$', flag: '🇺🇸' },
+  { code: 'EUR', name: 'Euro', symbol: '€', flag: '🇪🇺' },
+  { code: 'GBP', name: 'British Pound', symbol: '£', flag: '🇬🇧' }
+];
+
+export const DEFAULT_CURRENCY = 'INR';
+
+export const THEME_OPTIONS = [
+  { value: 'light', label: 'Light' },
+  { value: 'dark', label: 'Dark' },
+  { value: 'system', label: 'System' }
+];
+
+export const NAV_ITEMS = [
+  { id: 'dashboard', label: 'Dashboard', icon: 'LayoutDashboard' },
+  { id: 'transactions', label: 'Transactions', icon: 'Receipt' },
+  { id: 'products', label: 'Products', icon: 'Package' },
+  { id: 'analytics', label: 'Analytics', icon: 'TrendingUp' },
+  { id: 'budgets', label: 'Budgets', icon: 'Target' },
+  { id: 'recurring', label: 'Recurring', icon: 'RefreshCw' },
+  { id: 'add', label: 'Add Transaction', icon: 'PlusCircle' },
+  { id: 'analyzer', label: 'Analyzer', icon: 'Scan' },
+  { id: 'buying-list', label: 'Buying List', icon: 'ShoppingCart' },
+  { id: 'export', label: 'Export', icon: 'Download' },
+  { id: 'rules', label: 'Rules', icon: 'Zap' },
+  { id: 'settings', label: 'Settings', icon: 'Settings' }
+];
+
+// Helper function to get emoji from category
+export function getCategoryEmoji(category: Category | string): string {
+  return CATEGORY_EMOJIS[category] || '📄';
+}
+
+// Helper function to get subcategory emoji
+export function getSubcategoryEmoji(subcategory: string): string {
+  const cleanSub = subcategory.toLowerCase().trim();
+  for (const [category, subs] of Object.entries(SUBCATEGORIES)) {
+    const found = subs.find(s => s.name.toLowerCase() === cleanSub);
+    if (found) return found.emoji;
+  }
+  return '📄';
+}
