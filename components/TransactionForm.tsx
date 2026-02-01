@@ -1,5 +1,5 @@
 import React, { useState, useRef, ChangeEvent } from 'react';
-import { Camera, Upload, Check, Loader2, X, AlertCircle, Settings, ArrowDownCircle, ArrowUpCircle, Wallet as WalletIcon, Sparkles, ExternalLink, HelpCircle } from 'lucide-react';
+import { Camera, Upload, Check, Loader2, X, AlertCircle, Settings, ArrowDownCircle, ArrowUpCircle, Wallet as WalletIcon, Sparkles, ExternalLink, HelpCircle, FileText } from 'lucide-react';
 import { Category, Transaction, ReceiptData, Wallet } from '../types';
 import { CATEGORIES, CURRENCIES, DEFAULT_CURRENCY } from '../constants';
 import { geminiService, GEMINI_MODEL } from '../services/geminiService';
@@ -72,7 +72,6 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit, onCa
       actionText = "Check Model Availability";
     }
 
-    // Try to parse JSON for a cleaner message if possible, only for the detail view
     let technicalDetails = errorMsg;
     try {
         if (errorMsg.includes('{')) {
@@ -221,66 +220,85 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onSubmit, onCa
            </button>
         </div>
 
-        {/* File Upload - Only show if not editing or if we want to allow re-scan (optional, but keep it for now) */}
-        <div className="bg-indigo-50/50 border-2 border-dashed border-indigo-200/60 rounded-2xl p-6 text-center transition-all hover:bg-indigo-50 hover:border-indigo-300 relative">
-          
-          <div className="absolute top-2 right-2 flex items-center space-x-1 bg-white/80 backdrop-blur px-2 py-1 rounded text-[10px] text-indigo-500 font-medium border border-indigo-100 shadow-sm">
+        {/* Improved File Upload UI */}
+        <div 
+          onClick={() => !apiKey ? onOpenSettings?.() : fileInputRef.current?.click()}
+          className={`group border-2 border-dashed rounded-2xl p-8 text-center transition-all relative cursor-pointer ${
+            isScanning 
+              ? 'bg-indigo-50 border-indigo-300' 
+              : apiKey 
+                ? 'bg-slate-50 hover:bg-indigo-50/50 border-slate-200 hover:border-indigo-300'
+                : 'bg-orange-50 border-orange-200'
+          }`}
+        >
+          <div className="absolute top-3 right-3 flex items-center space-x-1 bg-white/90 backdrop-blur px-2 py-1 rounded-full text-[10px] text-indigo-500 font-bold border border-indigo-100 shadow-sm">
              <Sparkles className="w-3 h-3" />
-             <span>{GEMINI_MODEL}</span>
+             <span>AI Auto-Fill</span>
           </div>
 
           {!apiKey ? (
-             <div className="flex flex-col items-center justify-center space-y-3 pt-4">
+             <div className="flex flex-col items-center justify-center space-y-3">
                <div className="p-3 bg-orange-100 text-orange-600 rounded-full">
-                 <AlertCircle className="w-6 h-6" />
+                 <AlertCircle className="w-8 h-8" />
                </div>
-               <p className="text-slate-700 font-medium">AI Scanning is not configured</p>
-               <button 
-                 onClick={onOpenSettings}
-                 className="mt-2 flex items-center space-x-2 px-4 py-2 bg-white text-indigo-700 border border-indigo-200 rounded-lg hover:bg-indigo-50 transition-colors shadow-sm text-sm font-medium"
-               >
-                 <Settings className="w-4 h-4" />
-                 <span>Configure API Key</span>
-               </button>
+               <div>
+                 <p className="text-slate-800 font-bold">AI Scanner Not Ready</p>
+                 <p className="text-sm text-slate-500">Add your API Key in settings to enable receipt scanning.</p>
+               </div>
+             </div>
+          ) : isScanning ? (
+             <div className="flex flex-col items-center justify-center space-y-4 py-2">
+               <div className="relative">
+                 <div className="w-16 h-16 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+                 <div className="absolute inset-0 flex items-center justify-center">
+                   <Sparkles className="w-6 h-6 text-indigo-600" />
+                 </div>
+               </div>
+               <div>
+                 <p className="text-indigo-700 font-bold">Analyzing Receipt...</p>
+                 <p className="text-xs text-indigo-500">Extracting merchant, date, and items</p>
+               </div>
              </div>
           ) : (
-            <>
-              <input type="file" ref={fileInputRef} accept="image/*" className="hidden" onChange={handleFileChange} />
-              <input type="file" ref={cameraInputRef} accept="image/*" capture="environment" className="hidden" onChange={handleFileChange} />
-              
-              {isScanning ? (
-                <div className="flex flex-col items-center justify-center space-y-3 pt-4">
-                  <Loader2 className="w-8 h-8 text-indigo-600 animate-spin" />
-                  <p className="text-sm font-medium text-indigo-700">Analyzing Receipt with Gemini AI...</p>
-                </div>
-              ) : (
-                <div className="space-y-3 pt-2">
-                  <div className="flex justify-center space-x-4">
-                    <button 
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="flex items-center space-x-2 px-4 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-200"
-                    >
-                      <Upload className="w-4 h-4" />
-                      <span>Upload Image</span>
-                    </button>
-                    <button 
-                      type="button"
-                      onClick={() => cameraInputRef.current?.click()}
-                      className="flex items-center space-x-2 px-4 py-2 bg-white text-indigo-700 border border-indigo-200 rounded-xl hover:bg-white/80 transition-colors shadow-sm"
-                    >
-                      <Camera className="w-4 h-4" />
-                      <span>Camera</span>
-                    </button>
-                  </div>
-                  <p className="text-xs text-indigo-400">Supports JPG, PNG, WEBP. AI will auto-fill the form.</p>
-                  
-                  {scanError && renderErrorGuide(scanError)}
-                </div>
-              )}
-            </>
+             <div className="space-y-4">
+               <div className="flex justify-center">
+                 <div className="w-16 h-16 bg-white rounded-2xl shadow-sm flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                   <FileText className="w-8 h-8 text-indigo-500" />
+                 </div>
+               </div>
+               <div>
+                 <p className="text-lg font-bold text-slate-700 group-hover:text-indigo-700 transition-colors">
+                   Tap to Upload Bill
+                 </p>
+                 <p className="text-sm text-slate-400">
+                   Supports JPG, PNG • AI Extracts Details
+                 </p>
+               </div>
+               <div className="flex justify-center gap-3 pt-2">
+                  <button 
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
+                    className="px-4 py-2 bg-white text-slate-700 rounded-xl text-sm font-semibold shadow-sm border border-slate-200 hover:border-indigo-300 transition-all"
+                  >
+                    Choose File
+                  </button>
+                  <button 
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); cameraInputRef.current?.click(); }}
+                    className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-semibold shadow-md hover:bg-indigo-700 transition-all flex items-center gap-2"
+                  >
+                    <Camera className="w-4 h-4" />
+                    Camera
+                  </button>
+               </div>
+             </div>
           )}
+
+          <input type="file" ref={fileInputRef} accept="image/*" className="hidden" onChange={handleFileChange} />
+          <input type="file" ref={cameraInputRef} accept="image/*" capture="environment" className="hidden" onChange={handleFileChange} />
         </div>
+        
+        {scanError && renderErrorGuide(scanError)}
 
         {/* Form Fields */}
         <form onSubmit={handleSubmit} className="space-y-5">
