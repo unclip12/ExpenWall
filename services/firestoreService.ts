@@ -113,19 +113,28 @@ export const deleteBuyingItem = async (id: string) => {
 export const subscribeToCravings = (userId: string, callback: (data: Craving[]) => void) => {
   return db.collection('cravings')
     .where('userId', '==', userId)
-    .orderBy('cravedAt', 'desc')
     .onSnapshot((snapshot: any) => {
-      const data = snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() } as Craving));
+      // Sort in-memory instead of using orderBy to avoid composite index requirement
+      const data = snapshot.docs
+        .map((doc: any) => ({ id: doc.id, ...doc.data() } as Craving))
+        .sort((a, b) => b.cravedAt.localeCompare(a.cravedAt));
       callback(data);
     });
 };
 
 export const addCraving = async (craving: Omit<Craving, 'id' | 'userId'>, userId: string) => {
-  await db.collection('cravings').add({
-    ...craving,
-    userId,
-    createdAt: firebase.firestore.FieldValue.serverTimestamp()
-  });
+  try {
+    console.log('Adding craving:', { ...craving, userId });
+    await db.collection('cravings').add({
+      ...craving,
+      userId,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    console.log('Craving added successfully!');
+  } catch (error) {
+    console.error('Error adding craving to Firestore:', error);
+    throw error;
+  }
 };
 
 export const updateCravingOutcome = async (id: string, outcome: CravingOutcome) => {
