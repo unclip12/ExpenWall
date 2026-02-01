@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { auth } from './firebase';
 import { Menu, X, LogOut } from 'lucide-react';
-import { NAVIGATION_ITEMS, DEFAULT_CURRENCY } from './utils/constants';
+import { NAVIGATION_ITEMS, CURRENCY_CODE } from './utils/constants';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { LoginView } from './components/LoginView';
 import { Dashboard } from './components/Dashboard';
@@ -13,7 +13,7 @@ import { AnalyticsView } from './components/AnalyticsView';
 import { BudgetView } from './components/BudgetView';
 import { RecurringView } from './components/RecurringView';
 import { AnalyzerView } from './components/AnalyzerView';
-import { BuyingListView } from './components/BuyingListView';
+import { EnhancedBuyingListView } from './components/EnhancedBuyingListView';
 import { CravingsView } from './components/CravingsView';
 import { ExportView } from './components/ExportView';
 import { RulesView } from './components/RulesView';
@@ -81,7 +81,6 @@ function App() {
 
     // Subscribe to Firebase data (will merge with mock data)
     const unsubTx = subscribeToTransactions(user.uid, (firebaseTransactions) => {
-      // Only update if Firebase has data, otherwise keep mock data
       if (firebaseTransactions.length > 0) {
         setTransactions(firebaseTransactions);
       }
@@ -114,7 +113,7 @@ function App() {
       if (profile) {
         setTheme(profile.theme || 'light');
         if (profile.theme === 'dark') document.documentElement.classList.add('dark');
-        localStorage.setItem('expenwall_currency', DEFAULT_CURRENCY || 'INR');
+        localStorage.setItem('expenwall_currency', CURRENCY_CODE);
       }
     });
 
@@ -353,47 +352,12 @@ function App() {
                 />
               )}
               
-              {currentView === 'products' && (
-                <ProductsView
-                  products={products}
-                  priceHistory={[]}
-                  onProductClick={() => {}}
-                />
-              )}
-              
-              {currentView === 'add' && (
-                <SmartTransactionForm
-                  onSubmit={handleAddTransaction}
-                  onClose={() => setCurrentView('dashboard')}
-                  shops={shops}
-                  persons={persons}
-                />
-              )}
-              
               {currentView === 'analytics' && (
                 <AnalyticsView transactions={transactions} rules={rules} />
               )}
 
-              {currentView === 'budgets' && (
-                <BudgetView userId={user.uid} transactions={transactions} />
-              )}
-
-              {currentView === 'recurring' && (
-                <RecurringView userId={user.uid} />
-              )}
-
-              {currentView === 'analyzer' && (
-                <AnalyzerView 
-                  state={analyzerState}
-                  onStateChange={(updates) => setAnalyzerState(prev => ({ ...prev, ...updates }))}
-                  onSaveTransactions={handleSaveAnalyzerDrafts}
-                  onAnalyzeImage={handleAnalyzeImage}
-                  onSendMessage={handleAnalyzerMessage}
-                />
-              )}
-
               {currentView === 'buying-list' && (
-                <BuyingListView items={buyingList} userId={user.uid} />
+                <EnhancedBuyingListView items={buyingList} userId={user.uid} />
               )}
 
               {currentView === 'cravings' && (
@@ -406,12 +370,32 @@ function App() {
                 />
               )}
 
-              {currentView === 'export' && (
+              {currentView === 'recurring' && (
+                <RecurringView userId={user.uid} />
+              )}
+
+              {currentView === 'budgets' && (
+                <BudgetView userId={user.uid} transactions={transactions} />
+              )}
+
+              {currentView === 'split-bills' && (
+                <div className="bg-white dark:bg-slate-800 rounded-2xl p-12 text-center">
+                  <p className="text-slate-500 dark:text-slate-400">Split Bills feature coming soon!</p>
+                </div>
+              )}
+
+              {currentView === 'reports' && (
                 <ExportView transactions={transactions} rules={rules} />
               )}
 
-              {currentView === 'rules' && (
-                <RulesView rules={rules} />
+              {currentView === 'analyzer' && (
+                <AnalyzerView 
+                  state={analyzerState}
+                  onStateChange={(updates) => setAnalyzerState(prev => ({ ...prev, ...updates }))}
+                  onSaveTransactions={handleSaveAnalyzerDrafts}
+                  onAnalyzeImage={handleAnalyzeImage}
+                  onSendMessage={handleAnalyzerMessage}
+                />
               )}
 
               {currentView === 'settings' && (
