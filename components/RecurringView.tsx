@@ -59,7 +59,6 @@ export const RecurringView: React.FC<RecurringViewProps> = ({ userId }) => {
         currency,
         nextDueDate: nextDue,
         isActive: true,
-        userId,
       }, userId);
 
       // Reset form

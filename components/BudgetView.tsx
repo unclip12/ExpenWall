@@ -77,7 +77,6 @@ export const BudgetView: React.FC<BudgetViewProps> = ({ userId, transactions }) 
     try {
       await addBudget({
         ...newBudget,
-        userId,
         startDate: new Date().toISOString().split('T')[0],
       }, userId);
 

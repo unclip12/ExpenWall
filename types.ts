@@ -37,6 +37,7 @@ export interface ShopLocation {
   area?: string;
   city?: string;
   lastVisited?: string;
+  avgPrice?: number;
 }
 
 export interface Person {
@@ -50,6 +51,7 @@ export interface Person {
   totalReceived: number;
   totalSent: number;
   balance: number;
+  transactions?: Transaction[];
 }
 
 export interface TransactionItem {
@@ -66,7 +68,7 @@ export interface TransactionItem {
 }
 
 export interface UtilityDetails {
-  type: 'electricity' | 'water' | 'gas' | 'internet' | 'mobile' | 'dth';
+  type?: 'electricity' | 'water' | 'gas' | 'internet' | 'mobile' | 'dth';
   units?: number;
   pricePerUnit?: number;
   propertyType?: PropertyType;
@@ -185,6 +187,7 @@ export interface Product {
 }
 
 export interface PriceHistory {
+  id?: string;
   productName: string;
   brand?: string;
   weight?: number;
@@ -228,6 +231,7 @@ export interface UserProfile {
   geminiApiKey?: string;
   groqApiKey?: string;
   openaiApiKey?: string;
+  aiProvider?: 'gemini' | 'groq' | 'local';
   receiptScanAI?: 'gemini' | 'groq' | 'openai';
   emojiDetectionAI?: 'gemini' | 'groq' | 'local';
   categoryDetectionAI?: 'gemini' | 'groq' | 'local';

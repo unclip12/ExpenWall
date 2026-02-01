@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { 
   Package, 
@@ -5,8 +6,6 @@ import {
   TrendingDown, 
   MapPin, 
   AlertCircle, 
-  Star, 
-  Filter, 
   Search 
 } from 'lucide-react';
 import { Product, PriceHistory, Category } from '../types';
@@ -59,7 +58,6 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="bg-gradient-to-r from-emerald-500 to-emerald-600 p-6 rounded-3xl text-white shadow-xl">
         <div className="flex items-center space-x-3">
           <Package className="w-12 h-12" />
@@ -70,7 +68,6 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
         </div>
       </div>
 
-      {/* Filters */}
       <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl p-6 rounded-2xl shadow-lg border border-slate-100 dark:border-slate-700">
         <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center">
           <div className="relative flex-1">
@@ -100,12 +97,10 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
             className="px-4 py-3 border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 dark:text-white rounded-2xl focus:ring-2 focus:ring-emerald-500 outline-none"
           >
             <option value="all">All Categories</option>
-            {/* Add categories dynamically */}
           </select>
         </div>
       </div>
 
-      {/* Products Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredProducts.map((product) => (
           <div
@@ -113,7 +108,6 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
             className="group bg-white dark:bg-slate-800 hover:shadow-xl transition-all duration-300 border border-slate-200 dark:border-slate-700 rounded-3xl p-8 cursor-pointer hover:-translate-y-2"
             onClick={() => onProductClick(product.id)}
           >
-            {/* Header */}
             <div className="flex items-start justify-between mb-4">
               <div className="flex items-center space-x-3">
                 <div className="w-16 h-16 bg-gradient-to-br from-emerald-100 to-emerald-200 dark:from-emerald-900/50 dark:to-emerald-800/50 rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
@@ -140,14 +134,12 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
                 </div>
               </div>
               
-              {/* Price Trend */}
               <div className="flex flex-col items-end space-y-1 p-2 bg-slate-50 dark:bg-slate-700/50 rounded-2xl">
                 {getPriceTrendEmoji(product)}
                 <span className="text-xs text-slate-500 dark:text-slate-400">Trend</span>
               </div>
             </div>
 
-            {/* Price Stats */}
             <div className="space-y-3 mb-6">
               <div className="grid grid-cols-2 gap-4 text-center p-4 bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-700 dark:to-slate-600 rounded-2xl">
                 <div>
@@ -180,7 +172,6 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
               </div>
             </div>
 
-            {/* Best Shops */}
             <div className="space-y-2">
               <h4 className="font-semibold text-slate-800 dark:text-white flex items-center space-x-2 text-sm uppercase tracking-wide">
                 Best Shops
@@ -204,7 +195,6 @@ export const ProductsView: React.FC<ProductsViewProps> = ({
               </div>
             </div>
 
-            {/* Price Alerts */}
             {product.avgPrice > product.lowestPrice * 1.1 && (
               <div className="mt-4 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-2xl">
                 <div className="flex items-start space-x-3">
