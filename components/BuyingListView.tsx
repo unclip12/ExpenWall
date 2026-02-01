@@ -9,6 +9,80 @@ interface BuyingListViewProps {
   userId: string;
 }
 
+// Smart category detection based on item name
+const detectCategoryFromItemName = (itemName: string): { category: Category; subcategory?: string } => {
+  const name = itemName.toLowerCase();
+  
+  // Electronics
+  if (name.includes('headphone') || name.includes('earphone') || name.includes('earbud') || name.includes('airpod')) {
+    return { category: Category.SHOPPING, subcategory: 'Electronics - Audio' };
+  }
+  if (name.includes('phone') || name.includes('mobile') || name.includes('smartphone')) {
+    return { category: Category.SHOPPING, subcategory: 'Electronics - Phone' };
+  }
+  if (name.includes('laptop') || name.includes('computer') || name.includes('macbook')) {
+    return { category: Category.SHOPPING, subcategory: 'Electronics - Computer' };
+  }
+  if (name.includes('charger') || name.includes('cable') || name.includes('adapter')) {
+    return { category: Category.SHOPPING, subcategory: 'Electronics - Accessories' };
+  }
+  if (name.includes('watch') || name.includes('smartwatch') || name.includes('fitbit')) {
+    return { category: Category.SHOPPING, subcategory: 'Electronics - Wearables' };
+  }
+  
+  // Clothing & Fashion
+  if (name.includes('shoe') || name.includes('sneaker') || name.includes('boot') || name.includes('sandal')) {
+    return { category: Category.SHOPPING, subcategory: 'Clothing - Footwear' };
+  }
+  if (name.includes('shirt') || name.includes('t-shirt') || name.includes('tshirt') || name.includes('top')) {
+    return { category: Category.SHOPPING, subcategory: 'Clothing - Tops' };
+  }
+  if (name.includes('jeans') || name.includes('pant') || name.includes('trouser')) {
+    return { category: Category.SHOPPING, subcategory: 'Clothing - Bottoms' };
+  }
+  if (name.includes('jacket') || name.includes('coat') || name.includes('hoodie')) {
+    return { category: Category.SHOPPING, subcategory: 'Clothing - Outerwear' };
+  }
+  
+  // Sports & Fitness
+  if (name.includes('gym') || name.includes('dumbbell') || name.includes('treadmill') || name.includes('yoga mat')) {
+    return { category: Category.HEALTH, subcategory: 'Fitness Equipment' };
+  }
+  if (name.includes('cricket') || name.includes('football') || name.includes('badminton')) {
+    return { category: Category.ENTERTAINMENT, subcategory: 'Sports' };
+  }
+  
+  // Home & Kitchen
+  if (name.includes('bottle') || name.includes('flask') || name.includes('tumbler')) {
+    return { category: Category.SHOPPING, subcategory: 'Home - Drinkware' };
+  }
+  if (name.includes('bag') || name.includes('backpack') || name.includes('luggage')) {
+    return { category: Category.SHOPPING, subcategory: 'Accessories - Bags' };
+  }
+  if (name.includes('plate') || name.includes('bowl') || name.includes('utensil')) {
+    return { category: Category.SHOPPING, subcategory: 'Home - Kitchenware' };
+  }
+  
+  // Books & Education
+  if (name.includes('book') || name.includes('novel') || name.includes('textbook')) {
+    return { category: Category.SHOPPING, subcategory: 'Books' };
+  }
+  if (name.includes('notebook') || name.includes('pen') || name.includes('pencil')) {
+    return { category: Category.SHOPPING, subcategory: 'Stationery' };
+  }
+  
+  // Beauty & Personal Care
+  if (name.includes('shampoo') || name.includes('conditioner') || name.includes('soap')) {
+    return { category: Category.GROCERIES, subcategory: 'Personal Care' };
+  }
+  if (name.includes('perfume') || name.includes('cologne') || name.includes('fragrance')) {
+    return { category: Category.SHOPPING, subcategory: 'Beauty - Fragrance' };
+  }
+  
+  // Default
+  return { category: Category.SHOPPING, subcategory: 'General' };
+};
+
 export const BuyingListView: React.FC<BuyingListViewProps> = ({ items, userId }) => {
   const [newItemName, setNewItemName] = useState('');
   const [newItemPrice, setNewItemPrice] = useState('');
@@ -22,6 +96,7 @@ export const BuyingListView: React.FC<BuyingListViewProps> = ({ items, userId })
     actualPrice: '',
     merchant: '',
     category: Category.SHOPPING,
+    subcategory: '',
     date: new Date().toISOString().split('T')[0],
     notes: ''
   });
@@ -56,11 +131,15 @@ export const BuyingListView: React.FC<BuyingListViewProps> = ({ items, userId })
   };
 
   const handleMarkAsBought = (item: BuyingItem) => {
+    // AUTO-DETECT category and subcategory based on item name
+    const detected = detectCategoryFromItemName(item.name);
+    
     setPurchaseModalItem(item);
     setPurchaseData({
       actualPrice: item.estimatedPrice.toString(),
       merchant: '',
-      category: Category.SHOPPING,
+      category: detected.category,
+      subcategory: detected.subcategory || '',
       date: new Date().toISOString().split('T')[0],
       notes: `Purchased: ${item.name}`
     });
@@ -76,6 +155,7 @@ export const BuyingListView: React.FC<BuyingListViewProps> = ({ items, userId })
         merchant: purchaseData.merchant || 'Purchase',
         amount: parseFloat(purchaseData.actualPrice) || purchaseModalItem.estimatedPrice,
         category: purchaseData.category,
+        subcategory: purchaseData.subcategory,
         type: 'expense',
         date: purchaseData.date,
         currency: currencyCode,
@@ -96,6 +176,7 @@ export const BuyingListView: React.FC<BuyingListViewProps> = ({ items, userId })
         actualPrice: '',
         merchant: '',
         category: Category.SHOPPING,
+        subcategory: '',
         date: new Date().toISOString().split('T')[0],
         notes: ''
       });
@@ -289,7 +370,7 @@ export const BuyingListView: React.FC<BuyingListViewProps> = ({ items, userId })
         )}
       </div>
 
-      {/* Purchase Confirmation Modal */}
+      {/* Purchase Confirmation Modal with AUTO-DETECTED Category */}
       {purchaseModalItem && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setPurchaseModalItem(null)}>
           <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl max-w-md w-full" onClick={(e) => e.stopPropagation()}>
@@ -308,9 +389,22 @@ export const BuyingListView: React.FC<BuyingListViewProps> = ({ items, userId })
             </div>
 
             <div className="p-6 space-y-4">
+              {/* AI Detection Notice */}
+              <div className="bg-indigo-50 dark:bg-indigo-900/20 p-3 rounded-xl text-sm">
+                <div className="flex items-start space-x-2">
+                  <Zap className="w-4 h-4 text-indigo-600 dark:text-indigo-400 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <div className="font-semibold text-indigo-900 dark:text-indigo-200">Auto-detected:</div>
+                    <div className="text-indigo-700 dark:text-indigo-300 text-xs mt-1">
+                      Category: {purchaseData.category} {purchaseData.subcategory && `• ${purchaseData.subcategory}`}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {/* Actual Price */}
               <div>
-                <label className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2 block">Actual Price Paid</label>
+                <label className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2 block">Actual Price Paid *</label>
                 <div className="relative">
                   <span className="absolute left-3 top-3.5 text-slate-400">{currencySymbol}</span>
                   <input
@@ -332,7 +426,7 @@ export const BuyingListView: React.FC<BuyingListViewProps> = ({ items, userId })
 
               {/* Merchant/Shop */}
               <div>
-                <label className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2 block">Where did you buy it?</label>
+                <label className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2 block">Where did you buy it? *</label>
                 <div className="relative">
                   <Store className="absolute left-3 top-3.5 w-5 h-5 text-slate-400" />
                   <input
@@ -340,13 +434,13 @@ export const BuyingListView: React.FC<BuyingListViewProps> = ({ items, userId })
                     value={purchaseData.merchant}
                     onChange={(e) => setPurchaseData(prev => ({ ...prev, merchant: e.target.value }))}
                     className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none"
-                    placeholder="DMart, Amazon, etc."
+                    placeholder="Amazon, Flipkart, DMart, etc."
                     required
                   />
                 </div>
               </div>
 
-              {/* Category */}
+              {/* Category (Editable but Pre-filled) */}
               <div>
                 <label className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2 block">Category</label>
                 <select
@@ -358,6 +452,18 @@ export const BuyingListView: React.FC<BuyingListViewProps> = ({ items, userId })
                     <option key={cat} value={cat}>{cat}</option>
                   ))}
                 </select>
+              </div>
+
+              {/* Subcategory (Optional, Editable) */}
+              <div>
+                <label className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2 block">Subcategory (Optional)</label>
+                <input
+                  type="text"
+                  value={purchaseData.subcategory}
+                  onChange={(e) => setPurchaseData(prev => ({ ...prev, subcategory: e.target.value }))}
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 dark:text-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                  placeholder="Auto-detected or enter custom"
+                />
               </div>
 
               {/* Date */}
