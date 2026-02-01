@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { auth } from './firebase';
 import { Menu, X, LogOut } from 'lucide-react';
-import { NAV_ITEMS, DEFAULT_CURRENCY } from './constants';
+import { NAVIGATION_ITEMS, DEFAULT_CURRENCY } from './utils/constants';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { LoginView } from './components/LoginView';
 import { Dashboard } from './components/Dashboard';
@@ -14,19 +14,24 @@ import { BudgetView } from './components/BudgetView';
 import { RecurringView } from './components/RecurringView';
 import { AnalyzerView } from './components/AnalyzerView';
 import { BuyingListView } from './components/BuyingListView';
+import { CravingsView } from './components/CravingsView';
 import { ExportView } from './components/ExportView';
 import { RulesView } from './components/RulesView';
-import { Transaction, MerchantRule, Wallet, Product, ShopLocation, Person, BuyingItem, AnalyzerState, DraftTransaction, Category } from './types';
+import { Transaction, MerchantRule, Wallet, Product, ShopLocation, Person, BuyingItem, Craving, CravingOutcome, AnalyzerState, DraftTransaction, Category } from './types';
 import { 
   subscribeToTransactions, 
   subscribeToRules, 
   subscribeToWallets,
   subscribeToProducts,
   subscribeToBuyingList,
+  subscribeToCravings,
   addTransactionToDb,
   addTransactionsBatch,
   deleteTransaction,
   addMerchantRule,
+  addCraving,
+  updateCravingOutcome,
+  deleteCraving,
   getUserProfile
 } from './services/firestoreService';
 import { geminiService } from './services/geminiService';
@@ -51,6 +56,7 @@ function App() {
   const [wallets, setWallets] = useState<Wallet[]>(DEFAULT_WALLETS);
   const [products, setProducts] = useState<Product[]>(DEFAULT_PRODUCTS);
   const [buyingList, setBuyingList] = useState<BuyingItem[]>(DEFAULT_BUYING_LIST);
+  const [cravings, setCravings] = useState<Craving[]>([]);
   const [shops, setShops] = useState<ShopLocation[]>([]);
   const [persons, setPersons] = useState<Person[]>([]);
   const [theme, setTheme] = useState('light');
@@ -101,12 +107,14 @@ function App() {
       }
     });
 
+    const unsubCravings = subscribeToCravings(user.uid, setCravings);
+
     // Load user profile
     getUserProfile(user.uid).then(profile => {
       if (profile) {
         setTheme(profile.theme || 'light');
         if (profile.theme === 'dark') document.documentElement.classList.add('dark');
-        localStorage.setItem('expenwall_currency', DEFAULT_CURRENCY);
+        localStorage.setItem('expenwall_currency', DEFAULT_CURRENCY || 'INR');
       }
     });
 
@@ -116,6 +124,7 @@ function App() {
       unsubWallets();
       unsubProducts();
       unsubBuying();
+      unsubCravings();
     };
   }, [user]);
 
@@ -131,6 +140,19 @@ function App() {
       forcedCategory: category,
       forcedSubcategory: subcategory
     }, user.uid);
+  };
+
+  // Cravings Handlers
+  const handleAddCraving = async (craving: Omit<Craving, 'id'>) => {
+    await addCraving(craving, user.uid);
+  };
+
+  const handleUpdateCravingOutcome = async (id: string, outcome: CravingOutcome) => {
+    await updateCravingOutcome(id, outcome);
+  };
+
+  const handleDeleteCraving = async (id: string) => {
+    await deleteCraving(id);
   };
 
   const handleLogout = () => {
@@ -284,17 +306,17 @@ function App() {
             {/* Sidebar */}
             <nav className={`md:w-64 ${isMobileMenuOpen ? 'block' : 'hidden md:block'} flex-shrink-0`}>
               <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl rounded-2xl p-4 shadow-lg sticky top-24">
-                {NAV_ITEMS.map(item => {
+                {NAVIGATION_ITEMS.map(item => {
                   const Icon = item.icon;
                   return (
                     <button
-                      key={item.id}
+                      key={item.path}
                       onClick={() => {
-                        setCurrentView(item.id);
+                        setCurrentView(item.path);
                         setIsMobileMenuOpen(false);
                       }}
                       className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl font-medium transition-all mb-1 ${
-                        currentView === item.id
+                        currentView === item.path
                           ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-lg'
                           : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
                       }`}
@@ -372,6 +394,16 @@ function App() {
 
               {currentView === 'buying-list' && (
                 <BuyingListView items={buyingList} userId={user.uid} />
+              )}
+
+              {currentView === 'cravings' && (
+                <CravingsView 
+                  cravings={cravings}
+                  userId={user.uid}
+                  onAddCraving={handleAddCraving}
+                  onUpdateOutcome={handleUpdateCravingOutcome}
+                  onDeleteCraving={handleDeleteCraving}
+                />
               )}
 
               {currentView === 'export' && (
