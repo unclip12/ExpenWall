@@ -22,6 +22,7 @@ export type ThemeMode = 'light' | 'dark' | 'system';
 export type PersonType = 'friend' | 'family' | 'pg_owner' | 'landlord' | 'shop_owner' | 'colleague' | 'other';
 export type PropertyType = 'pg' | 'rental' | 'own_house' | 'office' | 'other';
 export type UnitType = 'gram' | 'kg' | 'ml' | 'litre' | 'piece' | 'packet' | 'box' | 'other';
+export type CravingOutcome = 'pending' | 'resisted' | 'gave_in';
 
 export interface Wallet {
   id: string;
@@ -155,14 +156,69 @@ export interface BudgetStatus {
   isOverBudget: boolean;
 }
 
+// ENHANCED BUYING ITEM with folders, reminders, detailed fields
+export interface BuyingItemReminder {
+  type: 'days_before' | 'hours_before' | 'on_date';
+  value: number; // e.g., 2 days, 24 hours
+  enabled: boolean;
+}
+
 export interface BuyingItem {
   id: string;
   userId?: string;
   name: string;
+  brand?: string;
   estimatedPrice: number;
   currency: string;
   isBought: boolean;
+  
+  // NEW FIELDS
+  folder?: string; // e.g., "Rental Home Setup", "Electronics"
+  platform?: string; // "Amazon", "Flipkart", etc.
+  targetDate?: string; // When to buy by
+  reminders?: BuyingItemReminder[]; // Multiple reminder options
+  productDetails?: Record<string, any>; // Dynamic fields based on product type
+  imageUrl?: string; // Screenshot URL
+  link?: string; // Product link
+  notes?: string;
+  
   createdAt?: any;
+  updatedAt?: any;
+}
+
+// NEW: CRAVING SYSTEM
+export interface CravingItem {
+  name: string;
+  price: number;
+  quantity: number;
+  image?: string;
+}
+
+export interface Craving {
+  id: string;
+  userId?: string;
+  items: CravingItem[]; // Array of items craved (chips, biryani, etc.)
+  totalAmount: number;
+  platform?: string; // Zepto, Swiggy, Zomato, etc.
+  outcome: CravingOutcome; // pending, resisted, gave_in
+  imageUrl?: string; // Screenshot of cart
+  notes?: string;
+  
+  // Dates
+  cravedAt: string; // When craving was logged
+  resolvedAt?: string; // When marked as resisted/gave_in
+  
+  createdAt?: any;
+}
+
+export interface CravingStats {
+  totalSaved: number;
+  totalWasted: number;
+  resistanceRate: number; // Percentage
+  totalCravings: number;
+  resistedCount: number;
+  gaveInCount: number;
+  mostCravedItems: { name: string; count: number; totalAmount: number }[];
 }
 
 export interface Product {
