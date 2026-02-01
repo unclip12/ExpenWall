@@ -30,12 +30,14 @@ import {
   getUserProfile
 } from './services/firestoreService';
 import { geminiService } from './services/geminiService';
+import { initializeSeedData } from './services/seedDataService';
 
 function App() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [currentView, setCurrentView] = useState('dashboard');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [seedDataLoading, setSeedDataLoading] = useState(false);
   
   // Data states
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -71,14 +73,29 @@ function App() {
     const unsubProducts = subscribeToProducts(user.uid, setProducts);
     const unsubBuying = subscribeToBuyingList(user.uid, setBuyingList);
 
-    // Load user profile
+    // Load user profile and initialize seed data for first-time users
     getUserProfile(user.uid).then(profile => {
       if (profile) {
         setTheme(profile.theme || 'light');
         if (profile.theme === 'dark') document.documentElement.classList.add('dark');
-        localStorage.setItem('expenwall_currency', DEFAULT_CURRENCY); // Ensure default if missing
+        localStorage.setItem('expenwall_currency', DEFAULT_CURRENCY);
       }
     });
+
+    // Initialize seed data for first-time users
+    const initSeedDataAsync = async () => {
+      try {
+        setSeedDataLoading(true);
+        await initializeSeedData(user.uid);
+      } catch (error) {
+        console.error('Failed to initialize seed data:', error);
+      } finally {
+        setSeedDataLoading(false);
+      }
+    };
+
+    // Run initialization in background (non-blocking)
+    initSeedDataAsync();
 
     return () => {
       unsubTx();
@@ -230,6 +247,14 @@ function App() {
   return (
     <ThemeProvider>
       <div className={`min-h-screen ${theme === 'dark' ? 'dark bg-slate-900' : 'bg-gradient-to-br from-indigo-50 via-white to-purple-50'}`}>
+        {/* Seed Data Loading Indicator */}
+        {seedDataLoading && (
+          <div className="fixed top-20 right-4 z-50 bg-indigo-600 text-white px-6 py-3 rounded-xl shadow-lg flex items-center space-x-3">
+            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+            <span className="text-sm font-medium">Setting up example data...</span>
+          </div>
+        )}
+
         {/* Header */}
         <header className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border-b border-slate-200 dark:border-slate-700 sticky top-0 z-40">
           <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
