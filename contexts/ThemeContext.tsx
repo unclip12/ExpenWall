@@ -1,65 +1,33 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { ThemeMode } from '../types';
+
+type Theme = 'light' | 'dark';
 
 interface ThemeContextType {
-  theme: ThemeMode;
-  effectiveTheme: 'light' | 'dark';
-  setTheme: (theme: ThemeMode) => void;
+  theme: Theme;
+  setTheme: (theme: Theme) => void;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [theme, setThemeState] = useState<ThemeMode>('system');
-  const [effectiveTheme, setEffectiveTheme] = useState<'light' | 'dark'>('light');
+  const [theme, setTheme] = useState<Theme>('light');
 
   useEffect(() => {
-    // Load saved theme
-    const saved = localStorage.getItem('expenwall_theme') as ThemeMode;
-    if (saved) {
-      setThemeState(saved);
-    }
+    const savedTheme = localStorage.getItem('theme') as Theme;
+    if (savedTheme) setTheme(savedTheme);
   }, []);
 
   useEffect(() => {
-    const calculateEffectiveTheme = () => {
-      if (theme === 'system') {
-        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-      }
-      return theme;
-    };
-
-    const updateTheme = () => {
-      const effective = calculateEffectiveTheme();
-      setEffectiveTheme(effective);
-      
-      // Apply to document
-      if (effective === 'dark') {
-        document.documentElement.classList.add('dark');
-      } else {
-        document.documentElement.classList.remove('dark');
-      }
-    };
-
-    updateTheme();
-
-    // Listen for system theme changes
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    const handler = () => {
-      if (theme === 'system') updateTheme();
-    };
-    
-    mediaQuery.addEventListener('change', handler);
-    return () => mediaQuery.removeEventListener('change', handler);
+    localStorage.setItem('theme', theme);
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
   }, [theme]);
 
-  const setTheme = (newTheme: ThemeMode) => {
-    setThemeState(newTheme);
-    localStorage.setItem('expenwall_theme', newTheme);
-  };
-
   return (
-    <ThemeContext.Provider value={{ theme, effectiveTheme, setTheme }}>
+    <ThemeContext.Provider value={{ theme, setTheme }}>
       {children}
     </ThemeContext.Provider>
   );
@@ -67,8 +35,6 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
 export const useTheme = () => {
   const context = useContext(ThemeContext);
-  if (!context) {
-    throw new Error('useTheme must be used within ThemeProvider');
-  }
+  if (!context) throw new Error('useTheme must be used within ThemeProvider');
   return context;
 };
