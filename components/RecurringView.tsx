@@ -3,13 +3,14 @@ import { RefreshCw, Plus, Trash2, Play, Pause, Calendar, Loader2, AlertCircle, C
 import { RecurringTransaction, Category } from '../types';
 import { subscribeToRecurringTransactions, addRecurringTransaction, deleteRecurringTransaction, toggleRecurringActive, addTransactionToDb } from '../services/firestoreService';
 import { CATEGORIES, CURRENCIES, DEFAULT_CURRENCY, RECURRING_FREQUENCIES } from '../constants';
+import { DEFAULT_RECURRING } from '../data/mockData';
 
 interface RecurringViewProps {
   userId: string;
 }
 
 export const RecurringView: React.FC<RecurringViewProps> = ({ userId }) => {
-  const [recurring, setRecurring] = useState<RecurringTransaction[]>([]);
+  const [recurring, setRecurring] = useState<RecurringTransaction[]>(DEFAULT_RECURRING.map(r => ({ ...r, userId })));
   const [isAdding, setIsAdding] = useState(false);
   const [newRecurring, setNewRecurring] = useState({
     merchant: '',
@@ -24,7 +25,12 @@ export const RecurringView: React.FC<RecurringViewProps> = ({ userId }) => {
   const currencySymbol = CURRENCIES.find(c => c.code === currency)?.symbol || '₹';
 
   useEffect(() => {
-    const unsub = subscribeToRecurringTransactions(userId, setRecurring);
+    const unsub = subscribeToRecurringTransactions(userId, (firebaseRecurring) => {
+      // Only update if Firebase has data, otherwise keep mock data
+      if (firebaseRecurring.length > 0) {
+        setRecurring(firebaseRecurring);
+      }
+    });
     return () => unsub();
   }, [userId]);
 
