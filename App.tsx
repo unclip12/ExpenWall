@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { auth } from './firebase';
 import { 
@@ -290,7 +291,7 @@ function App() {
     }, user.uid);
   };
 
-  const handleNaturalInputSubmit = async ( any) => {
+  const handleNaturalInputSubmit = async (data: any) => {
     if (!user) return;
     await addTransactionToDb({
       ...data,

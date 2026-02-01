@@ -1,32 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { 
   Users, 
-  TrendingUp, 
-  TrendingDown, 
-  Calendar, 
-  Phone, 
-  MapPin, 
-  Edit, 
-  AlertCircle 
+  Edit
 } from 'lucide-react';
 import { formatCurrency, formatDate } from '../utils/transactionUtils';
-
-interface Person {
-  id: string;
-  name: string;
-  type: string;
-  totalReceived: number;
-  totalSent: number;
-  balance: number;
-  transactions: Array<{
-    id: string;
-    date: string;
-    amount: number;
-    type: 'income' | 'expense';
-    description: string;
-    notes?: string;
-  }>;
-}
+import { Person, Transaction } from '../types';
 
 interface PersonTransactionsViewProps {
   person: Person;
@@ -37,14 +15,14 @@ export const PersonTransactionsView: React.FC<PersonTransactionsViewProps> = ({
   person,
   onEditPerson
 }) => {
-  const [showDetails, setShowDetails] = useState(false);
-
   const netBalance = person.totalReceived - person.totalSent;
   const balanceText = netBalance > 0 
-    ? `Rohit owes you ${formatCurrency(netBalance)}`
+    ? `They owe you ${formatCurrency(netBalance)}`
     : netBalance < 0 
-      ? `You owe Rohit ${formatCurrency(Math.abs(netBalance))}`
+      ? `You owe them ${formatCurrency(Math.abs(netBalance))}`
       : "Balance settled";
+
+  const transactions = person.transactions || [];
 
   return (
     <div className="space-y-6">
@@ -150,7 +128,7 @@ export const PersonTransactionsView: React.FC<PersonTransactionsViewProps> = ({
           </h3>
           
           <div className="divide-y divide-slate-200 dark:divide-slate-700 rounded-2xl overflow-hidden shadow-sm">
-            {person.transactions.slice(0, 10).map((tx, idx) => (
+            {transactions.slice(0, 10).map((tx, idx) => (
               <div key={idx} className="p-6 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-4">
@@ -162,7 +140,7 @@ export const PersonTransactionsView: React.FC<PersonTransactionsViewProps> = ({
                       {tx.type === 'income' ? '₹' : '-₹'}
                     </div>
                     <div className="space-y-1">
-                      <p className="font-semibold text-slate-800 dark:text-white">{tx.description}</p>
+                      <p className="font-semibold text-slate-800 dark:text-white">{tx.merchant}</p>
                       {tx.notes && (
                         <p className="text-sm text-slate-500 dark:text-slate-400">{tx.notes}</p>
                       )}
@@ -181,10 +159,10 @@ export const PersonTransactionsView: React.FC<PersonTransactionsViewProps> = ({
             ))}
           </div>
           
-          {person.transactions.length > 10 && (
+          {transactions.length > 10 && (
             <div className="text-center pt-4">
               <button className="text-indigo-600 hover:text-indigo-700 font-semibold text-sm">
-                Show all {person.transactions.length} transactions
+                Show all {transactions.length} transactions
               </button>
             </div>
           )}

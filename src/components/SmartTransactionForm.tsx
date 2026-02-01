@@ -1,24 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { 
   X, 
-  CheckCircle, 
   Plus, 
   Trash2, 
   Zap, 
   MapPin, 
   Users, 
   Package, 
-  BatteryCharging, 
-  Droplets, 
-  Fire 
+  BatteryCharging
 } from 'lucide-react';
-import { Transaction, Category, ShopLocation, TransactionItem, UtilityDetails, UnitType, PersonType } from '../types';
+import { Transaction, Category, ShopLocation, TransactionItem } from '../types';
 import { getSubcategorySuggestions, formatCurrency } from '../utils/transactionUtils';
-import { CATEGORIES, SUBCATEGORIES, UNIT_TYPES, PERSON_TYPES } from '../constants';
+import { CATEGORIES } from '../constants';
 
 interface SmartTransactionFormProps {
   initialData?: Partial<Transaction>;
-  onSubmit: (transaction: Transaction) => Promise<void>;
+  onSubmit: (transaction: Omit<Transaction, 'id'>) => Promise<void>;
   onClose: () => void;
   shops: ShopLocation[];
   persons: any[];
@@ -348,7 +345,7 @@ export const SmartTransactionForm: React.FC<SmartTransactionFormProps> = ({
                   className="w-full px-4 py-3 border border-amber-200 dark:border-amber-700 rounded-xl focus:ring-2 focus:ring-amber-500"
                   onChange={(e) => setFormData({
                     ...formData,
-                    utilityDetails: { ...formData.utilityDetails, propertyName: e.target.value, type: 'electricity' }
+                    utilityDetails: { ...formData.utilityDetails, propertyName: e.target.value }
                   })}
                 >
                   <option value="">Select property...</option>

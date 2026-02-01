@@ -1,3 +1,4 @@
+
 export enum Category {
   FOOD = 'Food & Dining',
   TRANSPORT = 'Transportation',
@@ -102,6 +103,7 @@ export interface Transaction {
   recurringId?: string;
   personId?: string;
   personName?: string;
+  personType?: PersonType;
   utilityDetails?: UtilityDetails;
   splitBill?: {
     people: SplitPerson[];
@@ -223,6 +225,7 @@ export interface StatementData {
 
 export interface UserProfile {
   apiKey?: string;
+  geminiApiKey?: string;
   groqApiKey?: string;
   openaiApiKey?: string;
   receiptScanAI?: 'gemini' | 'groq' | 'openai';

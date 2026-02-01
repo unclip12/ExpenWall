@@ -1,11 +1,9 @@
+
 import React, { useState, useEffect } from 'react';
 import { 
   X, 
   Zap, 
-  CheckCircle, 
-  Edit3, 
-  ChevronDown,
-  AlertTriangle
+  ChevronDown
 } from 'lucide-react';
 import { ProcessedTransaction, Category } from '../types';
 import { getSubcategorySuggestions, getCategoryEmoji } from '../utils/transactionUtils';
@@ -54,7 +52,6 @@ export const SmartRuleModal: React.FC<SmartRuleModalProps> = ({
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div className="bg-white dark:bg-slate-800 max-w-md w-full mx-4 rounded-3xl shadow-2xl animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
-        {/* Header */}
         <div className="p-6 border-b border-slate-200 dark:border-slate-700">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
@@ -79,9 +76,7 @@ export const SmartRuleModal: React.FC<SmartRuleModalProps> = ({
           </div>
         </div>
 
-        {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          {/* Merchant Rename */}
           <div>
             <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
               New Merchant Name
@@ -104,7 +99,6 @@ export const SmartRuleModal: React.FC<SmartRuleModalProps> = ({
             </p>
           </div>
 
-          {/* Category Selection */}
           <div>
             <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
               Category <span className="text-emerald-600">*</span>
@@ -149,7 +143,6 @@ export const SmartRuleModal: React.FC<SmartRuleModalProps> = ({
             </div>
           </div>
 
-          {/* Subcategory (Optional) */}
           {selectedCategory && (
             <div>
               <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
@@ -160,14 +153,12 @@ export const SmartRuleModal: React.FC<SmartRuleModalProps> = ({
                 value={selectedSubcategory}
                 onChange={(e) => {
                   setSelectedSubcategory(e.target.value);
-                  // Auto-suggest
                   const suggestions = getSubcategorySuggestions(e.target.value);
                   setSubcategorySuggestions(suggestions);
                 }}
                 placeholder="Type for suggestions..."
                 className="w-full px-4 py-3 border border-slate-200 dark:border-slate-600 rounded-2xl bg-slate-50 dark:bg-slate-700 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
               />
-              {/* Suggestions */}
               {subcategorySuggestions.length > 0 && (
                 <div className="mt-2 space-y-1">
                   {subcategorySuggestions.slice(0, 3).map((suggestion, idx) => (
@@ -187,7 +178,6 @@ export const SmartRuleModal: React.FC<SmartRuleModalProps> = ({
             </div>
           )}
 
-          {/* Actions */}
           <div className="flex gap-3 pt-4">
             <button
               type="button"

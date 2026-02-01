@@ -1,13 +1,9 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenAI } from '@google/genai';
 import { ReceiptData, StatementData, SubcategorySuggestion } from '../types';
 
 export class GeminiService {
-  private genAI: GoogleGenerativeAI | null = null;
-
-  initialize(apiKey: string) {
-    if (apiKey) {
-      this.genAI = new GoogleGenerativeAI(apiKey);
-    }
+  private getAI(apiKey: string) {
+    return new GoogleGenAI({ apiKey });
   }
 
   async analyzeBankStatement(
@@ -17,9 +13,7 @@ export class GeminiService {
     context?: string
   ): Promise<StatementData> {
     if (!apiKey) throw new Error('API key required');
-    this.initialize(apiKey);
-
-    const model = this.genAI!.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+    const ai = this.getAI(apiKey);
 
     const prompt = `Analyze this bank statement image and extract all transactions in JSON format.
 ${context ? `Previous context: ${context}` : ''}
@@ -38,17 +32,15 @@ Return ONLY valid JSON (no markdown, no explanations) in this exact format:
   ]
 }`;
 
-    const result = await model.generateContent([
-      prompt,
-      {
-        inlineData: {
-           data: base64Image,
-          mimeType: mimeType,
-        },
-      },
-    ]);
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.0-flash-exp',
+      contents: [
+        { text: prompt },
+        { inlineData: { mimeType, data: base64Image } }
+      ]
+    });
 
-    const text = result.response.text();
+    const text = response.text || '';
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error('Invalid response format');
 
@@ -61,9 +53,7 @@ Return ONLY valid JSON (no markdown, no explanations) in this exact format:
     apiKey: string
   ): Promise<ReceiptData> {
     if (!apiKey) throw new Error('API key required');
-    this.initialize(apiKey);
-
-    const model = this.genAI!.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+    const ai = this.getAI(apiKey);
 
     const prompt = `Analyze this receipt/bill image and extract ALL items with complete details.
 
@@ -98,17 +88,15 @@ Return ONLY valid JSON (no markdown) in this exact format:
 
 Extract every item with brand, weight/volume, quantity, MRP, discount if visible.`;
 
-    const result = await model.generateContent([
-      prompt,
-      {
-        inlineData: {
-           data: base64Image,
-          mimeType: mimeType,
-        },
-      },
-    ]);
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.0-flash-exp',
+      contents: [
+        { text: prompt },
+        { inlineData: { mimeType, data: base64Image } }
+      ]
+    });
 
-    const text = result.response.text();
+    const text = response.text || '';
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error('Invalid response format');
 
@@ -120,9 +108,7 @@ Extract every item with brand, weight/volume, quantity, MRP, discount if visible
     apiKey: string
   ): Promise<SubcategorySuggestion[]> {
     if (!apiKey) throw new Error('API key required');
-    this.initialize(apiKey);
-
-    const model = this.genAI!.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+    const ai = this.getAI(apiKey);
 
     const prompt = `Given the merchant/transaction: "${merchant}"
 
@@ -140,9 +126,13 @@ Return ONLY valid JSON array:
 
 Categories: Food & Dining, Transportation, Utilities, Shopping, Groceries, Health & Fitness, Entertainment, Education, Personal Care, Government & Official, Banking & Finance, Other`;
 
-    const result = await model.generateContent(prompt);
-    const text = result.response.text();
-    const jsonMatch = text.match(/\\[[\s\S]*\\]/);
+    const response = await ai.models.generateContent({
+        model: 'gemini-2.0-flash-exp',
+        contents: prompt
+    });
+    
+    const text = response.text || '';
+    const jsonMatch = text.match(/\[[\s\S]*\]/);
     if (!jsonMatch) return [];
 
     return JSON.parse(jsonMatch[0]);
@@ -150,9 +140,7 @@ Categories: Food & Dining, Transportation, Utilities, Shopping, Groceries, Healt
 
   async detectEmoji(merchant: string, apiKey: string): Promise<string> {
     if (!apiKey) throw new Error('API key required');
-    this.initialize(apiKey);
-
-    const model = this.genAI!.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+    const ai = this.getAI(apiKey);
 
     const prompt = `For the merchant/product: "${merchant}"
 Return ONLY a single relevant emoji (no text, no explanation).
@@ -162,8 +150,11 @@ Examples:
 - "Netflix" → 🎬
 - "Dove Soap" → 🧼`;
 
-    const result = await model.generateContent(prompt);
-    return result.response.text().trim();
+    const response = await ai.models.generateContent({
+        model: 'gemini-2.0-flash-exp',
+        contents: prompt
+    });
+    return (response.text || '').trim();
   }
 
   async parseNaturalLanguage(
@@ -178,9 +169,7 @@ Examples:
     date: string;
   }> {
     if (!apiKey) throw new Error('API key required');
-    this.initialize(apiKey);
-
-    const model = this.genAI!.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+    const ai = this.getAI(apiKey);
 
     const prompt = `Parse this natural language transaction: "${input}"
 
@@ -198,8 +187,12 @@ Examples:
 "Spent 500 on groceries" → {"merchant": "Groceries", "amount": 500, "category": "Groceries", "type": "expense", "date": "2026-02-01"}
 "Paid 250 to Rohit" → {"merchant": "Rohit", "amount": 250, "category": "Other", "type": "expense", "date": "2026-02-01"}`;
 
-    const result = await model.generateContent(prompt);
-    const text = result.response.text();
+    const response = await ai.models.generateContent({
+        model: 'gemini-2.0-flash-exp',
+        contents: prompt
+    });
+
+    const text = response.text || '';
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error('Could not parse input');
 
@@ -212,9 +205,7 @@ Examples:
     apiKey: string
   ): Promise<any[]> {
     if (!apiKey) throw new Error('API key required');
-    this.initialize(apiKey);
-
-    const model = this.genAI!.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+    const ai = this.getAI(apiKey);
 
     const prompt = `Current transactions:
 ${JSON.stringify(drafts, null, 2)}
@@ -234,15 +225,53 @@ Return ONLY valid JSON array (no markdown):
   }
 ]`;
 
-    const result = await model.generateContent(prompt);
-    const text = result.response.text();
-    const jsonMatch = text.match(/\\[[\s\S]*\\]/);
+    const response = await ai.models.generateContent({
+        model: 'gemini-2.0-flash-exp',
+        contents: prompt
+    });
+
+    const text = response.text || '';
+    const jsonMatch = text.match(/\[[\s\S]*\]/);
     if (!jsonMatch) throw new Error('Invalid response format');
 
     return JSON.parse(jsonMatch[0]).map((tx: any, idx: number) => ({
       ...tx,
       id: `draft-${Date.now()}-${idx}`,
     }));
+  }
+  
+  async generateInsights(
+    transactions: any[],
+    apiKey: string
+  ): Promise<{
+    patterns: string[];
+    anomalies: string[];
+    suggestions: string[];
+  }> {
+    if (!apiKey) throw new Error('API key required');
+    const ai = this.getAI(apiKey);
+
+    const prompt = `You are a financial advisor analyzing spending patterns.
+
+Transaction data (last 30 days):
+${JSON.stringify(transactions.slice(0, 100), null, 2)}
+
+Analyze and provide:
+1. patterns: 3 spending patterns (e.g., "You spend 40% more on weekends")
+2. anomalies: 2 unusual transactions (e.g., "Unusually high shopping expense")
+3. suggestions: 3 actionable savings tips (e.g., "Reduce dining out by 15%")
+
+Return JSON.`;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.0-flash-exp',
+      contents: prompt
+    });
+
+    const text = response.text || '';
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('Invalid response format');
+    return JSON.parse(jsonMatch[0]);
   }
 }
 

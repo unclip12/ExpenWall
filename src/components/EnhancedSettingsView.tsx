@@ -76,7 +76,6 @@ export const EnhancedSettingsView: React.FC<EnhancedSettingsViewProps> = ({
   };
 
   const testConnection = async () => {
-    // TODO: Implement API connection test
     alert('Testing connection...');
   };
 
@@ -182,94 +181,6 @@ export const EnhancedSettingsView: React.FC<EnhancedSettingsViewProps> = ({
                 </a>
               </p>
             </div>
-
-            <div className="grid grid-cols-2 gap-4 pt-4">
-              <div className="p-4 bg-white/50 dark:bg-slate-800/50 rounded-xl">
-                <div className="text-sm text-slate-600 dark:text-slate-400 mb-1">Model</div>
-                <div className="font-bold text-slate-800 dark:text-white">Gemini 2.0 Flash</div>
-              </div>
-              <div className="p-4 bg-white/50 dark:bg-slate-800/50 rounded-xl">
-                <div className="text-sm text-slate-600 dark:text-slate-400 mb-1">Features</div>
-                <div className="font-bold text-slate-800 dark:text-white">Vision + Text</div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Groq API Key */}
-        {selectedProvider === 'groq' && (
-          <div className="space-y-4 p-6 bg-gradient-to-br from-orange-50 to-amber-50 dark:from-slate-800 dark:to-slate-700 rounded-2xl border border-orange-200 dark:border-slate-600">
-            <div className="flex items-center space-x-2 text-orange-800 dark:text-orange-200 mb-3">
-              <Zap className="w-6 h-6" />
-              <h3 className="text-lg font-bold">Groq Configuration</h3>
-            </div>
-            
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
-                Groq API Key
-              </label>
-              <div className="relative">
-                <input
-                  type={showGroqKey ? 'text' : 'password'}
-                  value={groqApiKey}
-                  onChange={(e) => setGroqApiKey(e.target.value)}
-                  placeholder="gsk_..."
-                  className="w-full px-4 py-3 pr-24 border border-orange-200 dark:border-slate-600 rounded-2xl bg-white dark:bg-slate-800 focus:ring-2 focus:ring-orange-500 outline-none"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowGroqKey(!showGroqKey)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-colors"
-                >
-                  {showGroqKey ? (
-                    <EyeOff className="w-5 h-5 text-slate-500" />
-                  ) : (
-                    <Eye className="w-5 h-5 text-slate-500" />
-                  )}
-                </button>
-              </div>
-              <p className="text-xs text-slate-600 dark:text-slate-400 mt-2">
-                Get your free API key from{' '}
-                <a 
-                  href="https://console.groq.com/keys" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="text-orange-600 dark:text-orange-400 hover:underline font-semibold"
-                >
-                  Groq Console
-                </a>
-              </p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4 pt-4">
-              <div className="p-4 bg-white/50 dark:bg-slate-800/50 rounded-xl">
-                <div className="text-sm text-slate-600 dark:text-slate-400 mb-1">Model</div>
-                <div className="font-bold text-slate-800 dark:text-white">Llama 3.3 70B</div>
-              </div>
-              <div className="p-4 bg-white/50 dark:bg-slate-800/50 rounded-xl">
-                <div className="text-sm text-slate-600 dark:text-slate-400 mb-1">Speed</div>
-                <div className="font-bold text-slate-800 dark:text-white">⚡ Lightning Fast</div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Local/Offline Mode */}
-        {selectedProvider === 'local' && (
-          <div className="p-6 bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-700 rounded-2xl border border-slate-300 dark:border-slate-600">
-            <div className="flex items-center space-x-2 text-slate-800 dark:text-slate-200 mb-4">
-              <AlertCircle className="w-6 h-6" />
-              <h3 className="text-lg font-bold">Offline Mode</h3>
-            </div>
-            <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
-              AI features will use basic keyword matching without external API calls. 
-              Receipt scanning and smart categorization will be limited.
-            </p>
-            <div className="p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl">
-              <p className="text-sm text-amber-800 dark:text-amber-200">
-                ⚠️ <strong>Limited functionality:</strong> Manual entry recommended for best accuracy.
-              </p>
-            </div>
           </div>
         )}
 
@@ -285,7 +196,7 @@ export const EnhancedSettingsView: React.FC<EnhancedSettingsViewProps> = ({
           
           <button
             onClick={handleSaveSettings}
-            disabled={isSaving || (selectedProvider === 'gemini' && !geminiApiKey) || (selectedProvider === 'groq' && !groqApiKey)}
+            disabled={isSaving || (selectedProvider === 'gemini' && !geminiApiKey)}
             className="flex-1 flex items-center justify-center space-x-2 px-6 py-3 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-2xl font-semibold hover:from-indigo-600 hover:to-purple-700 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isSaving ? (

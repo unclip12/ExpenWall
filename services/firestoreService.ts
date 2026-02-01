@@ -1,6 +1,7 @@
+
 import { db } from '../firebase';
 import firebase from 'firebase/compat/app';
-import { Transaction, BuyingItem, MerchantRule, Wallet, UserProfile, RecurringTransaction, Budget } from '../types';
+import { Transaction, BuyingItem, MerchantRule, Wallet, UserProfile, RecurringTransaction, Budget, Product, PriceHistory } from '../types';
 
 // ==================== TRANSACTIONS ====================
 
@@ -41,14 +42,14 @@ export const addTransactionsBatch = async (transactions: Omit<Transaction, 'id'>
   await batch.commit();
 };
 
-export const updateTransactionInDb = async (id: string, updates: Partial<Transaction>) => {
+export const updateTransaction = async (id: string, updates: Partial<Transaction>) => {
   await db.collection('transactions').doc(id).update({
     ...updates,
     updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
   });
 };
 
-export const deleteTransactionFromDb = async (id: string) => {
+export const deleteTransaction = async (id: string) => {
   await db.collection('transactions').doc(id).delete();
 };
 
@@ -222,6 +223,24 @@ export const addWalletToDb = async (wallet: Omit<Wallet, 'id'>, userId: string) 
 
 export const deleteWalletFromDb = async (id: string) => {
   await db.collection('wallets').doc(id).delete();
+};
+
+// ==================== PRODUCTS & PRICES ====================
+
+export const subscribeToProducts = (
+  userId: string,
+  callback: (products: Product[]) => void
+): (() => void) => {
+  return db
+    .collection('products')
+    .where('userId', '==', userId)
+    .onSnapshot((snapshot) => {
+      const products: Product[] = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as Product[];
+      callback(products);
+    });
 };
 
 // ==================== USER PROFILE ====================
